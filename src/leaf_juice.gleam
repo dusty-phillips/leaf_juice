@@ -6,12 +6,13 @@ import gleam/erlang/process
 import gleam/list
 import gleam/option
 import gleam/otp/actor
+import leaf_juice/ui
 
 pub type LeafJuice(model, msg) {
   LeafJuice(
     init: fn() -> #(model, List(Effect(msg))),
     update: fn(model, msg) -> #(model, List(Effect(msg))),
-    view: fn(model) -> List(command.Command),
+    view: fn(model) -> ui.Node,
     map_event: fn(event.Event) -> msg,
     exit: process.Subject(Nil),
   )
@@ -48,6 +49,7 @@ pub fn start(
       command.Clear(terminal.All),
       command.MoveTo(0, 0),
       command.EnableMouseCapture,
+      command.HideCursor,
     ])
 
     event.init_event_server()
@@ -127,7 +129,7 @@ fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) 
 
 fn draw(app_state: AppState(model, msg)) -> Nil {
   stdout.Queue([command.Clear(terminal.All)])
-  |> stdout.queue(app_state.app.view(app_state.model))
+  |> stdout.queue(ui.draw(app_state.app.view(app_state.model)))
   |> stdout.flush()
 
   Nil
@@ -137,5 +139,6 @@ fn restore_term() -> Nil {
   stdout.execute([
     command.DisableMouseCapture,
     command.LeaveAlternateScreen,
+    command.ShowCursor,
   ])
 }

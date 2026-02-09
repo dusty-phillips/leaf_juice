@@ -1,9 +1,9 @@
-import etch/command
 import etch/event
 import etch/terminal
 import gleam/erlang/process
 import gleam/int
 import leaf_juice
+import leaf_juice/ui
 
 pub fn main() {
   let exit = process.new_subject()
@@ -45,13 +45,11 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
   }
 }
 
-fn view(model: Model) -> List(command.Command) {
-  [
-    command.MoveTo(0, 0),
-    command.Println(model.last_key),
-    command.MoveTo(5, 8),
-    command.Print(model.width |> int.to_string),
-    command.Print(", "),
-    command.Println(model.height |> int.to_string),
-  ]
+fn view(model: Model) -> ui.Node {
+  ui.OutlinedBox(ui.VerticalSplit(
+    ui.Text(model.last_key),
+    ui.OutlinedBox(ui.Text(
+      int.to_string(model.width) <> ", " <> int.to_string(model.height),
+    )),
+  ))
 }
