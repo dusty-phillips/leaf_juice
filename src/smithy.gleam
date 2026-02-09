@@ -46,7 +46,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 }
 
 fn view(model: Model) -> ui.Node {
-  ui.OutlinedBox(ui.VerticalSplit(
+  ui.OutlinedBox(ui.HorizontalSplit(
     ui.Text(model.last_key),
     ui.OutlinedBox(ui.Text(
       int.to_string(model.width) <> ", " <> int.to_string(model.height),

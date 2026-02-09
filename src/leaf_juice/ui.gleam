@@ -11,7 +11,7 @@ pub type Node {
   OutlinedBox(child: Node)
 
   VerticalSplit(left: Node, right: Node)
-  // HorizontalSplit(upper: Node, lower: Node)
+  HorizontalSplit(upper: Node, lower: Node)
 }
 
 type Context {
@@ -36,7 +36,7 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
 
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
-    VerticalSplit(left, right) -> {
+    VerticalSplit(left, right) ->
       [
         draw_in_context(
           left,
@@ -53,7 +53,24 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
         ),
       ]
       |> list.flatten
-    }
+
+    HorizontalSplit(upper, lower) ->
+      [
+        draw_in_context(
+          upper,
+          Context(context.left, context.top, context.width, context.height / 2),
+        ),
+        draw_in_context(
+          lower,
+          Context(
+            context.left,
+            context.top + context.height / 2,
+            context.width,
+            context.height / 2,
+          ),
+        ),
+      ]
+      |> list.flatten
   }
 }
 
