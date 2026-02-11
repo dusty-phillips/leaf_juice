@@ -51,5 +51,6 @@ fn view(model: Model) -> ui.Node {
     ui.OutlinedBox(ui.Text(
       int.to_string(model.width) <> ", " <> int.to_string(model.height),
     )),
+    ui.Percent(30),
   ))
 }
