@@ -1,4 +1,5 @@
 import etch/command
+import etch/style
 import etch/terminal
 import gleam/int
 import gleam/list
@@ -13,6 +14,7 @@ pub type Size {
 pub type Node {
   Empty
   Text(String)
+  Button(text: String, is_focused: Bool)
 
   OutlinedBox(child: Node)
 
@@ -45,6 +47,8 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
       command.Print(text),
     ]
 
+    Button(text, is_focused) -> draw_button(context, text, is_focused)
+
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
     VerticalSplit(left, right, left_size) ->
@@ -55,6 +59,52 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
 
     Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
+}
+
+fn draw_button(context: Context, text: String, is_focused: Bool) {
+  let rows_above = { context.height - 1 } / 2
+  let columns_before = { context.width - string.length(text) } / 2
+
+  let #(fg, bg) = case is_focused {
+    False -> #(style.Black, style.Green)
+    True -> #(style.Black, style.BrightGreen)
+  }
+
+  [
+    [
+      command.MoveTo(context.left, context.top),
+      command.SetForegroundAndBackgroundColors(bg:, fg:),
+    ],
+
+    list.range(context.top, context.top + rows_above)
+      |> list.flat_map(fn(row) {
+        [
+          command.MoveTo(context.left, row),
+          " " |> string.repeat(context.width) |> command.Print,
+        ]
+      }),
+
+    [
+      command.MoveTo(context.left, context.top + rows_above + 1),
+      command.Print(string.repeat(" ", columns_before)),
+      command.Print(text),
+      command.Print(string.repeat(
+        " ",
+        context.width - columns_before - string.length(text),
+      )),
+    ],
+
+    list.range(context.top + rows_above + 2, context.top + context.height - 1)
+      |> list.flat_map(fn(row) {
+        [
+          command.MoveTo(context.left, row),
+          " " |> string.repeat(context.width) |> command.Print,
+        ]
+      }),
+
+    [command.ResetColor],
+  ]
+  |> list.flatten
 }
 
 fn draw_outlined_box(context: Context, child: Node) -> List(command.Command) {

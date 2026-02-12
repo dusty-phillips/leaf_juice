@@ -48,11 +48,14 @@ fn view(model: Model) -> ui.Node {
   ui.OutlinedBox(
     ui.Grid([ui.Cells(3), ui.Cells(5), ui.Auto], [ui.Cells(20), ui.Auto], [
       ui.GridCell(ui.OutlinedBox(ui.Text("1")), rows: #(0, 0), columns: #(0, 0)),
-      ui.GridCell(ui.OutlinedBox(ui.Text("2")), rows: #(1, 2), columns: #(0, 0)),
+      ui.GridCell(ui.Button("2", is_focused: False), rows: #(1, 2), columns: #(
+        0,
+        0,
+      )),
       ui.GridCell(ui.OutlinedBox(ui.Text("3")), rows: #(0, 0), columns: #(1, 1)),
       ui.GridCell(ui.OutlinedBox(ui.Text("4")), rows: #(1, 1), columns: #(1, 1)),
       ui.GridCell(
-        ui.OutlinedBox(ui.Text(model.last_key)),
+        ui.Button(model.last_key, is_focused: True),
         rows: #(2, 2),
         columns: #(1, 1),
       ),
