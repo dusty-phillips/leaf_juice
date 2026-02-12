@@ -1,7 +1,6 @@
 import etch/event
 import etch/terminal
 import gleam/erlang/process
-import gleam/int
 import leaf_juice
 import leaf_juice/ui
 
@@ -52,7 +51,11 @@ fn view(model: Model) -> ui.Node {
       ui.GridCell(ui.OutlinedBox(ui.Text("2")), rows: #(1, 2), columns: #(0, 0)),
       ui.GridCell(ui.OutlinedBox(ui.Text("3")), rows: #(0, 0), columns: #(1, 1)),
       ui.GridCell(ui.OutlinedBox(ui.Text("4")), rows: #(1, 1), columns: #(1, 1)),
-      ui.GridCell(ui.OutlinedBox(ui.Text("5")), rows: #(2, 2), columns: #(1, 1)),
+      ui.GridCell(
+        ui.OutlinedBox(ui.Text(model.last_key)),
+        rows: #(2, 2),
+        columns: #(1, 1),
+      ),
     ]),
   )
 }

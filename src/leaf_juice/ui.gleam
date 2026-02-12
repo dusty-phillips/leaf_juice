@@ -48,47 +48,10 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
     VerticalSplit(left, right, left_size) ->
-      {
-        let left_size =
-          calculate_size(left_size, context.width, context.width / 2)
-        [
-          draw_in_context(
-            left,
-            Context(context.left, context.top, left_size, context.height),
-          ),
-          draw_in_context(
-            right,
-            Context(
-              context.left + left_size,
-              context.top,
-              context.width - left_size,
-              context.height,
-            ),
-          ),
-        ]
-      }
-      |> list.flatten
+      draw_vertical_split(context, left, right, left_size)
 
-    HorizontalSplit(upper, lower, upper_size) -> {
-      let upper_size =
-        calculate_size(upper_size, context.height, context.height / 2)
-      [
-        draw_in_context(
-          upper,
-          Context(context.left, context.top, context.width, upper_size),
-        ),
-        draw_in_context(
-          lower,
-          Context(
-            context.left,
-            context.top + upper_size,
-            context.width,
-            context.height - upper_size,
-          ),
-        ),
-      ]
-      |> list.flatten
-    }
+    HorizontalSplit(upper, lower, upper_size) ->
+      draw_horizontal_split(context, upper, lower, upper_size)
 
     Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
@@ -127,6 +90,58 @@ fn draw_outlined_box(context: Context, child: Node) -> List(command.Command) {
       ),
     ),
   ])
+}
+
+fn draw_vertical_split(
+  context: Context,
+  left: Node,
+  right: Node,
+  left_size: Size,
+) -> List(command.Command) {
+  let left_size = calculate_size(left_size, context.width, context.width / 2)
+
+  [
+    draw_in_context(
+      left,
+      Context(context.left, context.top, left_size, context.height),
+    ),
+    draw_in_context(
+      right,
+      Context(
+        context.left + left_size,
+        context.top,
+        context.width - left_size,
+        context.height,
+      ),
+    ),
+  ]
+  |> list.flatten
+}
+
+fn draw_horizontal_split(
+  context: Context,
+  upper: Node,
+  lower: Node,
+  upper_size: Size,
+) -> List(command.Command) {
+  let upper_size =
+    calculate_size(upper_size, context.height, context.height / 2)
+  [
+    draw_in_context(
+      upper,
+      Context(context.left, context.top, context.width, upper_size),
+    ),
+    draw_in_context(
+      lower,
+      Context(
+        context.left,
+        context.top + upper_size,
+        context.width,
+        context.height - upper_size,
+      ),
+    ),
+  ]
+  |> list.flatten
 }
 
 fn draw_grid(
