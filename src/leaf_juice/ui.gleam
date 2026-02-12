@@ -8,7 +8,6 @@ pub type Size {
   Cells(Int)
   Percent(Int)
   Auto
-  Full
 }
 
 pub type Node {
@@ -19,6 +18,11 @@ pub type Node {
 
   VerticalSplit(left: Node, right: Node, left_size: Size)
   HorizontalSplit(upper: Node, lower: Node, upper_size: Size)
+  Grid(rows: List(Size), columns: List(Size), children: List(GridCell))
+}
+
+pub type GridCell {
+  GridCell(node: Node, rows: #(Int, Int), columns: #(Int, Int))
 }
 
 type Context {
@@ -85,6 +89,8 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
       ]
       |> list.flatten
     }
+
+    Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
 }
 
@@ -123,6 +129,43 @@ fn draw_outlined_box(context: Context, child: Node) -> List(command.Command) {
   ])
 }
 
+fn draw_grid(
+  context: Context,
+  rows: List(Size),
+  columns: List(Size),
+  children: List(GridCell),
+) -> List(command.Command) {
+  let row_sizes = calculate_sizes(rows, context.height)
+  let col_sizes = calculate_sizes(columns, context.width)
+
+  children
+  |> list.flat_map(fn(child) {
+    let #(row_start, row_end) = child.rows
+    let #(col_start, col_end) = child.columns
+
+    let #(top, height) =
+      calculate_span(row_sizes, row_start, row_end + 1 - row_start)
+    let #(left, width) =
+      calculate_span(col_sizes, col_start, col_end + 1 - col_start)
+
+    draw_in_context(
+      child.node,
+      Context(
+        left: context.left + left,
+        top: context.top + top,
+        width: width,
+        height: height,
+      ),
+    )
+  })
+}
+
+fn calculate_span(sizes: List(Int), start: Int, count: Int) -> #(Int, Int) {
+  let offset = sizes |> list.take(start) |> int.sum
+  let size = sizes |> list.drop(start) |> list.take(count) |> int.sum
+  #(offset, size)
+}
+
 fn calculate_size(size: Size, full_size: Int, auto_size: Int) -> Int {
   case size {
     Cells(cells) ->
@@ -131,7 +174,37 @@ fn calculate_size(size: Size, full_size: Int, auto_size: Int) -> Int {
         False -> full_size
       }
     Percent(percent) -> full_size * percent / 100
-    Full -> full_size
     Auto -> auto_size
   }
+}
+
+fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
+  let auto_count =
+    list.count(sizes, fn(size) {
+      case size {
+        Auto -> True
+        _ -> False
+      }
+    })
+
+  let cells_used =
+    sizes
+    |> list.map(fn(size) {
+      case size {
+        Auto -> 0
+        Cells(cells) -> cells
+        Percent(percent) -> full_size * percent / 100
+      }
+    })
+    |> int.sum
+
+  let auto_size = { full_size - cells_used } / auto_count
+
+  list.map(sizes, fn(size) {
+    case size {
+      Cells(cells) -> cells
+      Percent(percent) -> full_size * percent / 100
+      Auto -> auto_size
+    }
+  })
 }

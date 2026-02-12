@@ -46,11 +46,13 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 }
 
 fn view(model: Model) -> ui.Node {
-  ui.OutlinedBox(ui.HorizontalSplit(
-    ui.Text(model.last_key),
-    ui.OutlinedBox(ui.Text(
-      int.to_string(model.width) <> ", " <> int.to_string(model.height),
-    )),
-    ui.Percent(30),
-  ))
+  ui.OutlinedBox(
+    ui.Grid([ui.Cells(3), ui.Cells(5), ui.Auto], [ui.Cells(20), ui.Auto], [
+      ui.GridCell(ui.OutlinedBox(ui.Text("1")), rows: #(0, 0), columns: #(0, 0)),
+      ui.GridCell(ui.OutlinedBox(ui.Text("2")), rows: #(1, 2), columns: #(0, 0)),
+      ui.GridCell(ui.OutlinedBox(ui.Text("3")), rows: #(0, 0), columns: #(1, 1)),
+      ui.GridCell(ui.OutlinedBox(ui.Text("4")), rows: #(1, 1), columns: #(1, 1)),
+      ui.GridCell(ui.OutlinedBox(ui.Text("5")), rows: #(2, 2), columns: #(1, 1)),
+    ]),
+  )
 }
