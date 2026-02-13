@@ -15,7 +15,13 @@ pub fn main() {
 }
 
 type Model {
-  Model(last_key: String, width: Int, height: Int, focused: Focus)
+  Model(
+    last_key: String,
+    last_button: String,
+    width: Int,
+    height: Int,
+    focused: Focus,
+  )
 }
 
 type Focus {
@@ -34,13 +40,34 @@ fn next_focus(focus: Focus) -> Focus {
   }
 }
 
+fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
+  case model.focused {
+    FocusNone -> #(model, [])
+    FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
+    FocusTwo -> #(model, [leaf_juice.Effect(fn() { UserInvokedTwo })])
+    FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
+  }
+}
+
 type Msg {
   RuntimeEmittedEvent(event.Event)
+  UserInvokedOne
+  UserInvokedTwo
+  UserInvokedLastKey
 }
 
 fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
   let #(width, height) = terminal.window_size()
-  #(Model(last_key: "None", width:, height:, focused: FocusNone), [])
+  #(
+    Model(
+      last_key: "None",
+      last_button: "None",
+      width:,
+      height:,
+      focused: FocusNone,
+    ),
+    [],
+  )
 }
 
 fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
@@ -55,10 +82,15 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
       [],
     )
 
+    // Escape clears focus
     RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\u{1b}"), ..))) -> #(
       Model(..model, focused: FocusNone),
       [],
     )
+
+    // Enter invokes action
+    RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\r"), ..))) ->
+      confirm_focused(model)
 
     RuntimeEmittedEvent(event.Key(key_event)) -> #(
       Model(..model, last_key: event.to_string(key_event.code)),
@@ -69,6 +101,14 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
       Model(..model, width:, height:),
       [],
     )
+
+    RuntimeEmittedEvent(event.Mouse(..))
+    | RuntimeEmittedEvent(event.FocusGained(..))
+    | RuntimeEmittedEvent(event.FocusLost(..)) -> #(model, [])
+
+    UserInvokedOne -> #(Model(..model, last_button: "One"), [])
+    UserInvokedTwo -> #(Model(..model, last_button: "Two"), [])
+    UserInvokedLastKey -> #(Model(..model, last_button: "LastKey"), [])
   }
 }
 
@@ -92,7 +132,11 @@ fn view(model: Model) -> ui.Node {
         rows: #(0, 0),
         columns: #(1, 1),
       ),
-      ui.GridCell(ui.OutlinedBox(ui.Text("4")), rows: #(1, 1), columns: #(1, 1)),
+      ui.GridCell(
+        ui.OutlinedBox(ui.Text(model.last_button)),
+        rows: #(1, 1),
+        columns: #(1, 1),
+      ),
       ui.GridCell(
         ui.Button(model.last_key, is_focused: model.focused == FocusLastKey),
         rows: #(2, 2),
