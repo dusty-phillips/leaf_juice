@@ -18,6 +18,7 @@ type Model {
   Model(
     last_key: String,
     last_button: String,
+    input_text: String,
     width: Int,
     height: Int,
     focused: Focus,
@@ -27,32 +28,32 @@ type Model {
 type Focus {
   FocusNone
   FocusOne
-  FocusTwo
+  FocusInput
   FocusLastKey
 }
 
 fn next_focus(focus: Focus) -> Focus {
   case focus {
     FocusNone -> FocusOne
-    FocusOne -> FocusTwo
-    FocusTwo -> FocusLastKey
+    FocusOne -> FocusInput
+    FocusInput -> FocusLastKey
     FocusLastKey -> FocusOne
   }
 }
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone -> #(model, [])
+    FocusNone | FocusInput -> #(model, [])
+
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
-    FocusTwo -> #(model, [leaf_juice.Effect(fn() { UserInvokedTwo })])
     FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
   }
 }
 
 type Msg {
   RuntimeEmittedEvent(event.Event)
+  UserClickedInput
   UserInvokedOne
-  UserInvokedTwo
   UserInvokedLastKey
 }
 
@@ -62,6 +63,7 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
     Model(
       last_key: "None",
       last_button: "None",
+      input_text: "",
       width:,
       height:,
       focused: FocusNone,
@@ -92,10 +94,11 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\r"), ..))) ->
       confirm_focused(model)
 
-    RuntimeEmittedEvent(event.Key(key_event)) -> #(
-      Model(..model, last_key: event.to_string(key_event.code)),
-      [],
-    )
+    RuntimeEmittedEvent(event.Key(key_event)) ->
+      case model.focused {
+        FocusInput -> update_text_input(model, key_event)
+        _ -> #(Model(..model, last_key: event.to_string(key_event.code)), [])
+      }
 
     RuntimeEmittedEvent(event.Resize(width, height)) -> #(
       Model(..model, width:, height:),
@@ -107,21 +110,41 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     | RuntimeEmittedEvent(event.FocusLost(..)) -> #(model, [])
 
     UserInvokedOne -> #(Model(..model, last_button: "One"), [])
-    UserInvokedTwo -> #(Model(..model, last_button: "Two"), [])
     UserInvokedLastKey -> #(Model(..model, last_button: "LastKey"), [])
+    UserClickedInput -> #(Model(..model, focused: FocusInput), [])
   }
 }
 
-fn view(model: Model) -> ui.Node {
+fn update_text_input(
+  model: Model,
+  key_event: event.KeyEvent,
+) -> #(Model, List(leaf_juice.Effect(Msg))) {
+  case key_event.code {
+    event.Char(char) -> {
+      #(Model(..model, input_text: model.input_text <> char), [])
+    }
+    _ -> #(model, [])
+  }
+}
+
+fn view(model: Model) -> ui.Node(Msg) {
   ui.OutlinedBox(
     ui.Grid([ui.Cells(6), ui.Cells(7), ui.Auto], [ui.Cells(20), ui.Auto], [
       ui.GridCell(
-        ui.OutlinedBox(ui.Button("1", is_focused: model.focused == FocusOne)),
+        ui.OutlinedBox(
+          ui.Button("1", is_focused: model.focused == FocusOne, on_click: fn() {
+            UserInvokedOne
+          }),
+        ),
         rows: #(0, 0),
         columns: #(0, 0),
       ),
       ui.GridCell(
-        ui.Button("2", is_focused: model.focused == FocusTwo),
+        ui.TextInput(
+          model.input_text,
+          is_focused: model.focused == FocusInput,
+          on_click: fn() { UserClickedInput },
+        ),
         rows: #(1, 2),
         columns: #(0, 0),
       ),
@@ -138,7 +161,11 @@ fn view(model: Model) -> ui.Node {
         columns: #(1, 1),
       ),
       ui.GridCell(
-        ui.Button(model.last_key, is_focused: model.focused == FocusLastKey),
+        ui.Button(
+          model.last_key,
+          is_focused: model.focused == FocusLastKey,
+          on_click: fn() { UserInvokedLastKey },
+        ),
         rows: #(2, 2),
         columns: #(1, 1),
       ),

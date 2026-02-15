@@ -11,43 +11,82 @@ pub type Size {
   Auto
 }
 
-pub type Node {
+pub type Node(msg) {
   Empty
   Text(String)
-  Button(text: String, is_focused: Bool)
 
-  OutlinedBox(child: Node)
+  Button(text: String, is_focused: Bool, on_click: fn() -> msg)
+  TextInput(text: String, is_focused: Bool, on_click: fn() -> msg)
 
-  VerticalSplit(left: Node, right: Node, left_size: Size)
-  HorizontalSplit(upper: Node, lower: Node, upper_size: Size)
-  Grid(rows: List(Size), columns: List(Size), children: List(GridCell))
+  OutlinedBox(child: Node(msg))
+
+  VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
+  HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
+  Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
 }
 
-pub type GridCell {
-  GridCell(node: Node, rows: #(Int, Int), columns: #(Int, Int))
+pub type GridCell(msg) {
+  GridCell(node: Node(msg), rows: #(Int, Int), columns: #(Int, Int))
+}
+
+pub type MouseCallback(msg) {
+  MouseClickCallback(
+    left: Int,
+    top: Int,
+    width: Int,
+    height: Int,
+    callback: fn() -> msg,
+  )
 }
 
 type Context {
   Context(left: Int, top: Int, width: Int, height: Int)
 }
 
-@internal
-pub fn draw(node: Node) -> List(command.Command) {
-  let #(columns, rows) = terminal.window_size()
-
-  draw_in_context(node, Context(0, 0, columns, rows))
+type DrawResponse(msg) {
+  DrawResponse(
+    commands: List(command.Command),
+    callbacks: List(MouseCallback(msg)),
+    // Commands to be run after drawing everything else
+    // I don't like this it is a hack but it is the way I came up with
+    // to move the cursor to a focused input without managing focus
+    after_commands: List(command.Command),
+  )
 }
 
-fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
+@internal
+pub fn draw(
+  node: Node(msg),
+) -> #(List(command.Command), List(MouseCallback(msg))) {
+  let #(columns, rows) = terminal.window_size()
+
+  let DrawResponse(commands, callbacks, after_commands) =
+    draw_in_context(node, Context(0, 0, columns, rows))
+
+  let commands = list.flatten([[command.HideCursor], commands, after_commands])
+
+  #([command.HideCursor, ..commands], callbacks)
+}
+
+fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
   case node {
-    Empty -> []
+    Empty -> DrawResponse([], [], [])
 
-    Text(text) -> [
-      command.MoveTo(context.left, context.top),
-      command.Print(text),
-    ]
+    Text(text) ->
+      DrawResponse(
+        [
+          command.MoveTo(context.left, context.top),
+          command.Print(text),
+        ],
+        [],
+        [],
+      )
 
-    Button(text, is_focused) -> draw_button(context, text, is_focused)
+    Button(text, is_focused, on_click) ->
+      draw_button(context, text, is_focused, on_click)
+
+    TextInput(text, is_focused, on_click) ->
+      draw_text_input(context, text, is_focused, on_click)
 
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
@@ -61,7 +100,12 @@ fn draw_in_context(node: Node, context: Context) -> List(command.Command) {
   }
 }
 
-fn draw_button(context: Context, text: String, is_focused: Bool) {
+fn draw_button(
+  context: Context,
+  text: String,
+  is_focused: Bool,
+  on_click: fn() -> msg,
+) -> DrawResponse(msg) {
   let rows_above = { context.height - 1 } / 2
   let columns_before = { context.width - string.length(text) } / 2
 
@@ -70,66 +114,127 @@ fn draw_button(context: Context, text: String, is_focused: Bool) {
     True -> #(style.Black, style.BrightGreen)
   }
 
-  [
+  DrawResponse(
     [
-      command.MoveTo(context.left, context.top),
-      command.SetForegroundAndBackgroundColors(bg:, fg:),
-    ],
+      [
+        command.MoveTo(context.left, context.top),
+        command.SetForegroundAndBackgroundColors(bg:, fg:),
+      ],
 
-    list.range(context.top, context.top + rows_above)
-      |> list.flat_map(fn(row) {
-        [
-          command.MoveTo(context.left, row),
-          " " |> string.repeat(context.width) |> command.Print,
-        ]
-      }),
+      list.range(context.top, context.top + rows_above)
+        |> list.flat_map(fn(row) {
+          [
+            command.MoveTo(context.left, row),
+            " " |> string.repeat(context.width) |> command.Print,
+          ]
+        }),
 
+      [
+        command.MoveTo(context.left, context.top + rows_above + 1),
+        command.Print(string.repeat(" ", columns_before)),
+        command.Print(text),
+        command.Print(string.repeat(
+          " ",
+          context.width - columns_before - string.length(text),
+        )),
+      ],
+
+      list.range(context.top + rows_above + 2, context.top + context.height - 1)
+        |> list.flat_map(fn(row) {
+          [
+            command.MoveTo(context.left, row),
+            " " |> string.repeat(context.width) |> command.Print,
+          ]
+        }),
+
+      [command.ResetColor],
+    ]
+      |> list.flatten,
     [
-      command.MoveTo(context.left, context.top + rows_above + 1),
-      command.Print(string.repeat(" ", columns_before)),
-      command.Print(text),
-      command.Print(string.repeat(
-        " ",
-        context.width - columns_before - string.length(text),
-      )),
+      MouseClickCallback(
+        context.left,
+        context.top,
+        context.width,
+        context.height,
+        on_click,
+      ),
     ],
-
-    list.range(context.top + rows_above + 2, context.top + context.height - 1)
-      |> list.flat_map(fn(row) {
-        [
-          command.MoveTo(context.left, row),
-          " " |> string.repeat(context.width) |> command.Print,
-        ]
-      }),
-
-    [command.ResetColor],
-  ]
-  |> list.flatten
+    [],
+  )
 }
 
-fn draw_outlined_box(context: Context, child: Node) -> List(command.Command) {
-  list.flatten([
-    [
-      command.MoveTo(context.left, context.top),
-      command.Print("╭"),
-      command.Print(string.repeat("─", context.width - 2)),
-      command.Print("╮"),
-      command.MoveTo(context.left, context.top + context.height - 1),
-      command.Print("╰"),
-      command.Print(string.repeat("─", context.width - 2)),
-      command.Print("╯"),
-    ],
+fn draw_text_input(
+  context: Context,
+  text: String,
+  is_focused: Bool,
+  on_click: fn() -> msg,
+) -> DrawResponse(msg) {
+  let rows_above = { context.height - 3 } / 2
+  let columns_before = { context.width - string.length(text) } / 2
 
-    list.range(context.top + 1, context.top + context.height - 2)
-      |> list.map(fn(row) {
-        [
-          command.MoveTo(context.left, row),
-          command.Print("│"),
-          command.MoveTo(int.max(0, context.left + context.width - 1), row),
-          command.Print("│"),
-        ]
-      })
-      |> list.flatten,
+  let fg = case is_focused {
+    False -> style.Blue
+    True -> style.BrightBlue
+  }
+
+  DrawResponse(
+    list.flatten([
+      [
+        command.MoveTo(context.left, context.top),
+        command.SetForegroundColor(fg),
+        command.Print("┌"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("┐"),
+        command.MoveTo(context.left, context.top + context.height - 1),
+        command.Print("└"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("┘"),
+      ],
+
+      list.range(context.top + 1, context.top + context.height - 2)
+        |> list.map(fn(row) {
+          [
+            command.MoveTo(context.left, row),
+            command.Print("│"),
+            command.MoveTo(int.max(0, context.left + context.width - 1), row),
+            command.Print("│"),
+          ]
+        })
+        |> list.flatten,
+
+      [
+        command.MoveTo(context.left + columns_before, context.top + rows_above),
+        command.Print(text),
+        command.ResetColor,
+      ],
+    ]),
+    [
+      MouseClickCallback(
+        context.left,
+        context.top,
+        context.width,
+        context.height,
+        on_click,
+      ),
+    ],
+    // Move cursor after drawing everything else
+    // assumes only one element focused, else last focus wins
+
+    case is_focused {
+      True -> [
+        command.MoveTo(
+          context.left + columns_before + string.length(text),
+          context.top + rows_above,
+        ),
+        command.ShowCursor,
+      ]
+      False -> []
+    },
+  )
+}
+
+fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
+  let DrawResponse(child_commands, child_callbacks, child_after) =
     draw_in_context(
       child,
       Context(
@@ -138,23 +243,51 @@ fn draw_outlined_box(context: Context, child: Node) -> List(command.Command) {
         context.width - 2,
         context.height - 2,
       ),
-    ),
-  ])
+    )
+
+  DrawResponse(
+    list.flatten([
+      [
+        command.MoveTo(context.left, context.top),
+        command.Print("╭"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("╮"),
+        command.MoveTo(context.left, context.top + context.height - 1),
+        command.Print("╰"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("╯"),
+      ],
+
+      list.range(context.top + 1, context.top + context.height - 2)
+        |> list.map(fn(row) {
+          [
+            command.MoveTo(context.left, row),
+            command.Print("│"),
+            command.MoveTo(int.max(0, context.left + context.width - 1), row),
+            command.Print("│"),
+          ]
+        })
+        |> list.flatten,
+      child_commands,
+    ]),
+    child_callbacks,
+    child_after,
+  )
 }
 
 fn draw_vertical_split(
   context: Context,
-  left: Node,
-  right: Node,
+  left: Node(msg),
+  right: Node(msg),
   left_size: Size,
-) -> List(command.Command) {
+) -> DrawResponse(msg) {
   let left_size = calculate_size(left_size, context.width, context.width / 2)
-
-  [
+  let DrawResponse(left_commands, left_callbacks, left_after) =
     draw_in_context(
       left,
       Context(context.left, context.top, left_size, context.height),
-    ),
+    )
+  let DrawResponse(right_commands, right_callbacks, right_after) =
     draw_in_context(
       right,
       Context(
@@ -163,24 +296,29 @@ fn draw_vertical_split(
         context.width - left_size,
         context.height,
       ),
-    ),
-  ]
-  |> list.flatten
+    )
+
+  DrawResponse(
+    list.flatten([left_commands, right_commands]),
+    list.flatten([left_callbacks, right_callbacks]),
+    list.flatten([left_after, right_after]),
+  )
 }
 
 fn draw_horizontal_split(
   context: Context,
-  upper: Node,
-  lower: Node,
+  upper: Node(msg),
+  lower: Node(msg),
   upper_size: Size,
-) -> List(command.Command) {
+) -> DrawResponse(msg) {
   let upper_size =
     calculate_size(upper_size, context.height, context.height / 2)
-  [
+  let DrawResponse(upper_commands, upper_callbacks, upper_after) =
     draw_in_context(
       upper,
       Context(context.left, context.top, context.width, upper_size),
-    ),
+    )
+  let DrawResponse(lower_commands, lower_callbacks, lower_after) =
     draw_in_context(
       lower,
       Context(
@@ -189,40 +327,56 @@ fn draw_horizontal_split(
         context.width,
         context.height - upper_size,
       ),
-    ),
-  ]
-  |> list.flatten
+    )
+
+  DrawResponse(
+    list.flatten([upper_commands, lower_commands]),
+    list.flatten([upper_callbacks, lower_callbacks]),
+    list.flatten([upper_after, lower_after]),
+  )
 }
 
 fn draw_grid(
   context: Context,
   rows: List(Size),
   columns: List(Size),
-  children: List(GridCell),
-) -> List(command.Command) {
+  children: List(GridCell(msg)),
+) -> DrawResponse(msg) {
   let row_sizes = calculate_sizes(rows, context.height)
   let col_sizes = calculate_sizes(columns, context.width)
 
-  children
-  |> list.flat_map(fn(child) {
-    let #(row_start, row_end) = child.rows
-    let #(col_start, col_end) = child.columns
+  let accumulated =
+    list.fold(children, #([], [], []), fn(accumulator, child) {
+      let #(row_start, row_end) = child.rows
+      let #(col_start, col_end) = child.columns
 
-    let #(top, height) =
-      calculate_span(row_sizes, row_start, row_end + 1 - row_start)
-    let #(left, width) =
-      calculate_span(col_sizes, col_start, col_end + 1 - col_start)
+      let #(top, height) =
+        calculate_span(row_sizes, row_start, row_end + 1 - row_start)
+      let #(left, width) =
+        calculate_span(col_sizes, col_start, col_end + 1 - col_start)
 
-    draw_in_context(
-      child.node,
-      Context(
-        left: context.left + left,
-        top: context.top + top,
-        width: width,
-        height: height,
-      ),
-    )
-  })
+      let DrawResponse(child_commands, child_callbacks, child_after) =
+        draw_in_context(
+          child.node,
+          Context(
+            left: context.left + left,
+            top: context.top + top,
+            width: width,
+            height: height,
+          ),
+        )
+
+      #([child_commands, ..accumulator.0], [child_callbacks, ..accumulator.1], [
+        child_after,
+        ..accumulator.2
+      ])
+    })
+
+  DrawResponse(
+    list.flatten(accumulated.0),
+    list.flatten(accumulated.1),
+    list.flatten(accumulated.2),
+  )
 }
 
 fn calculate_span(sizes: List(Int), start: Int, count: Int) -> #(Int, Int) {

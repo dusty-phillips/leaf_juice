@@ -3,6 +3,7 @@ import etch/event
 import etch/stdout
 import etch/terminal
 import gleam/erlang/process
+import gleam/function
 import gleam/list
 import gleam/option
 import gleam/otp/actor
@@ -12,7 +13,7 @@ pub type LeafJuice(model, msg) {
   LeafJuice(
     init: fn() -> #(model, List(Effect(msg))),
     update: fn(model, msg) -> #(model, List(Effect(msg))),
-    view: fn(model) -> ui.Node,
+    view: fn(model) -> ui.Node(msg),
     map_event: fn(event.Event) -> msg,
     exit: process.Subject(Nil),
   )
@@ -28,6 +29,7 @@ type AppState(model, msg) {
     app: LeafJuice(model, msg),
     model: model,
     actor: process.Subject(ActorMessage(msg)),
+    mouse_callbacks: List(ui.MouseCallback(msg)),
   )
 }
 
@@ -54,7 +56,7 @@ pub fn start(
 
     event.init_event_server()
 
-    let app_state = AppState(app, model, actor_subject)
+    let app_state = AppState(app, model, actor_subject, mouse_callbacks: [])
 
     draw(app_state)
 
@@ -71,6 +73,13 @@ pub fn start(
 fn on_message(app_state: AppState(model, msg), message: ActorMessage(msg)) {
   case message {
     Event(event) -> {
+      case event {
+        event.Mouse(
+          event.MouseEvent(kind: event.Up(event.Left), ..) as mouse_event,
+        ) -> on_mouse_up(app_state, mouse_event)
+        _ -> Nil
+      }
+
       event
       |> app_state.app.map_event
       |> do_update(app_state, _)
@@ -116,23 +125,50 @@ fn handle_input(actor_subject: process.Subject(ActorMessage(msg))) -> Nil {
   handle_input(actor_subject)
 }
 
+fn on_mouse_up(app_state: AppState(model, msg), event: event.MouseEvent) -> Nil {
+  let event.MouseEvent(row:, column:, ..) = event
+
+  let match =
+    list.find(app_state.mouse_callbacks, fn(callback) {
+      let ui.MouseClickCallback(left:, top:, width:, height:, ..) = callback
+
+      list.all(
+        [
+          row > top,
+          row < top + height,
+          column > left,
+          column < left + width,
+        ],
+        function.identity,
+      )
+    })
+
+  case match {
+    Ok(callback) -> process.send(app_state.actor, AppMsg(callback.callback()))
+    Error(Nil) -> Nil
+  }
+}
+
 fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) {
   let #(next_model, next_effects) = app_state.app.update(app_state.model, msg)
 
-  let next_state = AppState(..app_state, model: next_model)
+  let next_state = AppState(..app_state, model: next_model, mouse_callbacks: [])
 
-  draw(next_state)
+  let next_state = draw(next_state)
   run_effects(app_state.actor, next_effects)
 
   next_state
 }
 
-fn draw(app_state: AppState(model, msg)) -> Nil {
+fn draw(app_state: AppState(model, msg)) -> AppState(model, msg) {
+  let #(commands, mouse_callbacks) =
+    ui.draw(app_state.app.view(app_state.model))
+
   stdout.Queue([command.Clear(terminal.All)])
-  |> stdout.queue(ui.draw(app_state.app.view(app_state.model)))
+  |> stdout.queue(commands)
   |> stdout.flush()
 
-  Nil
+  AppState(..app_state, mouse_callbacks:)
 }
 
 fn restore_term() -> Nil {
