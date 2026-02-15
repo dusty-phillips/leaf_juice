@@ -92,7 +92,13 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 
     RuntimeEmittedEvent(event.Key(key_event)) ->
       case model.focused {
-        FocusInput -> update_text_input(model, key_event)
+        FocusInput -> #(
+          Model(
+            ..model,
+            input_text: update_text_input(model.input_text, key_event),
+          ),
+          [],
+        )
         _ ->
           case key_event {
             event.KeyEvent(code: event.Char("q"), ..) -> #(model, [
@@ -121,57 +127,71 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 }
 
 fn update_text_input(
-  model: Model,
+  model: ui.TextInputModel,
   key_event: event.KeyEvent,
-) -> #(Model, List(leaf_juice.Effect(Msg))) {
+) -> ui.TextInputModel {
   case echo key_event.code {
-    event.LeftArrow -> #(
-      Model(
+    event.LeftArrow ->
+      ui.TextInputModel(
         ..model,
-        input_text: ui.TextInputModel(
-          ..model.input_text,
-          cursor_position: int.max(0, model.input_text.cursor_position - 1),
-        ),
-      ),
-      [],
-    )
+        cursor_position: int.max(0, model.cursor_position - 1),
+      )
 
-    event.RightArrow -> #(
-      Model(
+    event.RightArrow ->
+      ui.TextInputModel(
         ..model,
-        input_text: ui.TextInputModel(
-          ..model.input_text,
-          cursor_position: int.min(
-            string.length(model.input_text.text),
-            model.input_text.cursor_position + 1,
-          ),
+        cursor_position: int.min(
+          string.length(model.text),
+          model.cursor_position + 1,
         ),
-      ),
-      [],
-    )
-    event.Char(char) -> {
-      let before =
-        string.slice(model.input_text.text, 0, model.input_text.cursor_position)
+      )
+
+    event.Delete -> {
+      let before = string.slice(model.text, 0, model.cursor_position)
       let after =
         string.slice(
-          model.input_text.text,
-          model.input_text.cursor_position,
-          string.length(model.input_text.text)
-            - model.input_text.cursor_position,
+          model.text,
+          model.cursor_position + 1,
+          string.length(model.text) - model.cursor_position - 1,
         )
-
-      #(
-        Model(
-          ..model,
-          input_text: ui.TextInputModel(
-            text: before <> char <> after,
-            cursor_position: model.input_text.cursor_position + 1,
-          ),
+      ui.TextInputModel(
+        text: before <> after,
+        cursor_position: int.min(
+          model.cursor_position,
+          string.length(model.text),
         ),
-        [],
       )
     }
-    _ -> #(model, [])
+
+    event.Char("\u{007F}") -> {
+      // Backspace isn't handled right by etch
+      let before = string.slice(model.text, 0, model.cursor_position - 1)
+      let after =
+        string.slice(
+          model.text,
+          model.cursor_position,
+          string.length(model.text) - model.cursor_position,
+        )
+      ui.TextInputModel(
+        text: before <> after,
+        cursor_position: int.max(0, model.cursor_position - 1),
+      )
+    }
+
+    event.Char(char) -> {
+      let before = string.slice(model.text, 0, model.cursor_position)
+      let after =
+        string.slice(
+          model.text,
+          model.cursor_position,
+          string.length(model.text) - model.cursor_position,
+        )
+      ui.TextInputModel(
+        text: before <> char <> after,
+        cursor_position: model.cursor_position + 1,
+      )
+    }
+    _ -> model
   }
 }
 
