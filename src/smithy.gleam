@@ -2,7 +2,6 @@ import etch/event
 import etch/terminal
 import gleam/erlang/process
 import gleam/int
-import gleam/string
 import leaf_juice
 import leaf_juice/ui
 
@@ -95,7 +94,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
         FocusInput -> #(
           Model(
             ..model,
-            input_text: update_text_input(model.input_text, key_event),
+            input_text: ui.update_text_input(model.input_text, key_event),
           ),
           [],
         )
@@ -123,75 +122,6 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     UserInvokedOne -> #(Model(..model, last_button: "One"), [])
     UserInvokedLastKey -> #(Model(..model, last_button: "LastKey"), [])
     UserClickedInput -> #(Model(..model, focused: FocusInput), [])
-  }
-}
-
-fn update_text_input(
-  model: ui.TextInputModel,
-  key_event: event.KeyEvent,
-) -> ui.TextInputModel {
-  case echo key_event.code {
-    event.LeftArrow ->
-      ui.TextInputModel(
-        ..model,
-        cursor_position: int.max(0, model.cursor_position - 1),
-      )
-
-    event.RightArrow ->
-      ui.TextInputModel(
-        ..model,
-        cursor_position: int.min(
-          string.length(model.text),
-          model.cursor_position + 1,
-        ),
-      )
-
-    event.Delete -> {
-      let before = string.slice(model.text, 0, model.cursor_position)
-      let after =
-        string.slice(
-          model.text,
-          model.cursor_position + 1,
-          string.length(model.text) - model.cursor_position - 1,
-        )
-      ui.TextInputModel(
-        text: before <> after,
-        cursor_position: int.min(
-          model.cursor_position,
-          string.length(model.text),
-        ),
-      )
-    }
-
-    event.Char("\u{007F}") -> {
-      // Backspace isn't handled right by etch
-      let before = string.slice(model.text, 0, model.cursor_position - 1)
-      let after =
-        string.slice(
-          model.text,
-          model.cursor_position,
-          string.length(model.text) - model.cursor_position,
-        )
-      ui.TextInputModel(
-        text: before <> after,
-        cursor_position: int.max(0, model.cursor_position - 1),
-      )
-    }
-
-    event.Char(char) -> {
-      let before = string.slice(model.text, 0, model.cursor_position)
-      let after =
-        string.slice(
-          model.text,
-          model.cursor_position,
-          string.length(model.text) - model.cursor_position,
-        )
-      ui.TextInputModel(
-        text: before <> char <> after,
-        cursor_position: model.cursor_position + 1,
-      )
-    }
-    _ -> model
   }
 }
 

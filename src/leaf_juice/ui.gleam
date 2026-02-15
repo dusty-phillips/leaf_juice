@@ -1,4 +1,5 @@
 import etch/command
+import etch/event
 import etch/style
 import etch/terminal
 import gleam/int
@@ -27,6 +28,75 @@ pub type Node(msg) {
 
 pub type TextInputModel {
   TextInputModel(text: String, cursor_position: Int)
+}
+
+pub fn update_text_input(
+  model: TextInputModel,
+  key_event: event.KeyEvent,
+) -> TextInputModel {
+  case echo key_event.code {
+    event.LeftArrow ->
+      TextInputModel(
+        ..model,
+        cursor_position: int.max(0, model.cursor_position - 1),
+      )
+
+    event.RightArrow ->
+      TextInputModel(
+        ..model,
+        cursor_position: int.min(
+          string.length(model.text),
+          model.cursor_position + 1,
+        ),
+      )
+
+    event.Delete -> {
+      let before = string.slice(model.text, 0, model.cursor_position)
+      let after =
+        string.slice(
+          model.text,
+          model.cursor_position + 1,
+          string.length(model.text) - model.cursor_position - 1,
+        )
+      TextInputModel(
+        text: before <> after,
+        cursor_position: int.min(
+          model.cursor_position,
+          string.length(model.text),
+        ),
+      )
+    }
+
+    event.Char("\u{007F}") -> {
+      // Backspace isn't handled right by etch
+      let before = string.slice(model.text, 0, model.cursor_position - 1)
+      let after =
+        string.slice(
+          model.text,
+          model.cursor_position,
+          string.length(model.text) - model.cursor_position,
+        )
+      TextInputModel(
+        text: before <> after,
+        cursor_position: int.max(0, model.cursor_position - 1),
+      )
+    }
+
+    event.Char(char) -> {
+      let before = string.slice(model.text, 0, model.cursor_position)
+      let after =
+        string.slice(
+          model.text,
+          model.cursor_position,
+          string.length(model.text) - model.cursor_position,
+        )
+      TextInputModel(
+        text: before <> char <> after,
+        cursor_position: model.cursor_position + 1,
+      )
+    }
+    _ -> model
+  }
 }
 
 pub type GridCell(msg) {
