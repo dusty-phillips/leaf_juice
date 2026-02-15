@@ -162,7 +162,7 @@ fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) 
 
 fn draw(app_state: AppState(model, msg)) -> AppState(model, msg) {
   let #(commands, mouse_callbacks) =
-    ui.draw(app_state.app.view(app_state.model))
+    ui.draw(app_state.app.view(app_state.model), terminal.window_size())
 
   stdout.Queue([command.Clear(terminal.All)])
   |> stdout.queue(commands)

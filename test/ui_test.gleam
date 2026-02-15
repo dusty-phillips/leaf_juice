@@ -1,5 +1,6 @@
+import etch/command
 import etch/event
-import etch/terminal
+import etch/style
 import leaf_juice/ui
 
 fn make_key_event(code: event.KeyCode) -> event.KeyEvent {
@@ -105,5 +106,147 @@ pub fn update_text_input_backspace_test() {
 }
 
 pub fn draw_empty_test() {
-  echo terminal.window_size()
+  assert ui.draw(ui.Empty, #(20, 80)) == #([command.HideCursor], [])
+}
+
+pub fn draw_text_test() {
+  assert ui.draw(ui.Text("Hello"), #(20, 80))
+    == #([command.HideCursor, command.MoveTo(0, 0), command.Print("Hello")], [])
+}
+
+pub fn draw_button_test() {
+  let handler = fn() { Nil }
+  assert ui.draw(ui.Button("Hello", False, handler), #(10, 10))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundAndBackgroundColors(style.Black, style.Green),
+        command.MoveTo(0, 0),
+        command.Print("          "),
+        command.MoveTo(0, 1),
+        command.Print("          "),
+        command.MoveTo(0, 2),
+        command.Print("          "),
+        command.MoveTo(0, 3),
+        command.Print("          "),
+        command.MoveTo(0, 4),
+        command.Print("          "),
+        command.MoveTo(0, 5),
+        command.Print("  "),
+        command.Print("Hello"),
+        command.Print("   "),
+        command.MoveTo(0, 6),
+        command.Print("          "),
+        command.MoveTo(0, 7),
+        command.Print("          "),
+        command.MoveTo(0, 8),
+        command.Print("          "),
+        command.MoveTo(0, 9),
+        command.Print("          "),
+        command.ResetColor,
+      ],
+      [ui.MouseClickCallback(0, 0, 10, 10, handler)],
+    )
+
+  assert ui.draw(ui.Button("Hello", False, handler), #(11, 11))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundAndBackgroundColors(style.Black, style.Green),
+        command.MoveTo(0, 0),
+        command.Print("           "),
+        command.MoveTo(0, 1),
+        command.Print("           "),
+        command.MoveTo(0, 2),
+        command.Print("           "),
+        command.MoveTo(0, 3),
+        command.Print("           "),
+        command.MoveTo(0, 4),
+        command.Print("           "),
+        command.MoveTo(0, 5),
+        command.Print("           "),
+        command.MoveTo(0, 6),
+        command.Print("   "),
+        command.Print("Hello"),
+        command.Print("   "),
+        command.MoveTo(0, 7),
+        command.Print("           "),
+        command.MoveTo(0, 8),
+        command.Print("           "),
+        command.MoveTo(0, 9),
+        command.Print("           "),
+        command.MoveTo(0, 10),
+        command.Print("           "),
+        command.ResetColor,
+      ],
+      [ui.MouseClickCallback(0, 0, 11, 11, handler)],
+    )
+
+  assert ui.draw(ui.Button("Hello", True, handler), #(10, 10))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundAndBackgroundColors(style.Black, style.BrightGreen),
+        command.MoveTo(0, 0),
+        command.Print("          "),
+        command.MoveTo(0, 1),
+        command.Print("          "),
+        command.MoveTo(0, 2),
+        command.Print("          "),
+        command.MoveTo(0, 3),
+        command.Print("          "),
+        command.MoveTo(0, 4),
+        command.Print("          "),
+        command.MoveTo(0, 5),
+        command.Print("  "),
+        command.Print("Hello"),
+        command.Print("   "),
+        command.MoveTo(0, 6),
+        command.Print("          "),
+        command.MoveTo(0, 7),
+        command.Print("          "),
+        command.MoveTo(0, 8),
+        command.Print("          "),
+        command.MoveTo(0, 9),
+        command.Print("          "),
+        command.ResetColor,
+      ],
+      [ui.MouseClickCallback(0, 0, 10, 10, handler)],
+    )
+
+  assert ui.draw(ui.Button("Hello World", True, handler), #(10, 10))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundAndBackgroundColors(style.Black, style.BrightGreen),
+        command.MoveTo(0, 0),
+        command.Print("          "),
+        command.MoveTo(0, 1),
+        command.Print("          "),
+        command.MoveTo(0, 2),
+        command.Print("          "),
+        command.MoveTo(0, 3),
+        command.Print("          "),
+        command.MoveTo(0, 4),
+        command.Print("          "),
+        command.MoveTo(0, 5),
+        command.Print(""),
+        command.Print("Hello Worl"),
+        command.Print(""),
+        command.MoveTo(0, 6),
+        command.Print("          "),
+        command.MoveTo(0, 7),
+        command.Print("          "),
+        command.MoveTo(0, 8),
+        command.Print("          "),
+        command.MoveTo(0, 9),
+        command.Print("          "),
+        command.ResetColor,
+      ],
+      [ui.MouseClickCallback(0, 0, 10, 10, handler)],
+    )
 }

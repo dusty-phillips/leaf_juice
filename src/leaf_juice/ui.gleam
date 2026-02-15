@@ -1,7 +1,6 @@
 import etch/command
 import etch/event
 import etch/style
-import etch/terminal
 import gleam/int
 import gleam/list
 import gleam/string
@@ -131,15 +130,16 @@ type DrawResponse(msg) {
 @internal
 pub fn draw(
   node: Node(msg),
+  window_size: #(Int, Int),
 ) -> #(List(command.Command), List(MouseCallback(msg))) {
-  let #(columns, rows) = terminal.window_size()
+  let #(columns, rows) = window_size
 
   let DrawResponse(commands, callbacks, after_commands) =
     draw_in_context(node, Context(0, 0, columns, rows))
 
   let commands = list.flatten([[command.HideCursor], commands, after_commands])
 
-  #([command.HideCursor, ..commands], callbacks)
+  #(commands, callbacks)
 }
 
 fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
@@ -182,17 +182,18 @@ fn draw_button(
 ) -> DrawResponse(msg) {
   let rows_above = { context.height - 1 } / 2
   let columns_before = { context.width - string.length(text) } / 2
+  let text = string.slice(text, 0, context.width)
 
-  let #(fg, bg) = case is_focused {
-    False -> #(style.Black, style.Green)
-    True -> #(style.Black, style.BrightGreen)
+  let bg = case is_focused {
+    False -> style.Green
+    True -> style.BrightGreen
   }
 
   DrawResponse(
     [
       [
         command.MoveTo(context.left, context.top),
-        command.SetForegroundAndBackgroundColors(bg:, fg:),
+        command.SetForegroundAndBackgroundColors(bg:, fg: style.Black),
       ],
 
       list.range(context.top, context.top + rows_above)
