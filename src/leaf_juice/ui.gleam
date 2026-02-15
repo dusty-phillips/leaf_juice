@@ -34,7 +34,7 @@ pub fn update_text_input(
   model: TextInputModel,
   key_event: event.KeyEvent,
 ) -> TextInputModel {
-  case echo key_event.code {
+  case key_event.code {
     event.LeftArrow ->
       TextInputModel(
         ..model,
