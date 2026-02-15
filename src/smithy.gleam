@@ -2,6 +2,7 @@ import etch/event
 import etch/terminal
 import gleam/erlang/process
 import gleam/int
+import gleam/string
 import leaf_juice
 import leaf_juice/ui
 
@@ -18,7 +19,7 @@ type Model {
   Model(
     last_key: String,
     last_button: String,
-    input_text: String,
+    input_text: ui.TextInputModel,
     width: Int,
     height: Int,
     focused: Focus,
@@ -63,7 +64,7 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
     Model(
       last_key: "None",
       last_button: "None",
-      input_text: "",
+      input_text: ui.TextInputModel("", cursor_position: 0),
       width:,
       height:,
       focused: FocusNone,
@@ -74,11 +75,6 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
 
 fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case msg {
-    RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("q"), ..))) -> #(
-      model,
-      [leaf_juice.Exit],
-    )
-
     RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\t"), ..))) -> #(
       Model(..model, focused: next_focus(model.focused)),
       [],
@@ -97,7 +93,16 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     RuntimeEmittedEvent(event.Key(key_event)) ->
       case model.focused {
         FocusInput -> update_text_input(model, key_event)
-        _ -> #(Model(..model, last_key: event.to_string(key_event.code)), [])
+        _ ->
+          case key_event {
+            event.KeyEvent(code: event.Char("q"), ..) -> #(model, [
+              leaf_juice.Exit,
+            ])
+            _ -> #(
+              Model(..model, last_key: event.to_string(key_event.code)),
+              [],
+            )
+          }
       }
 
     RuntimeEmittedEvent(event.Resize(width, height)) -> #(
@@ -119,9 +124,52 @@ fn update_text_input(
   model: Model,
   key_event: event.KeyEvent,
 ) -> #(Model, List(leaf_juice.Effect(Msg))) {
-  case key_event.code {
+  case echo key_event.code {
+    event.LeftArrow -> #(
+      Model(
+        ..model,
+        input_text: ui.TextInputModel(
+          ..model.input_text,
+          cursor_position: int.max(0, model.input_text.cursor_position - 1),
+        ),
+      ),
+      [],
+    )
+
+    event.RightArrow -> #(
+      Model(
+        ..model,
+        input_text: ui.TextInputModel(
+          ..model.input_text,
+          cursor_position: int.min(
+            string.length(model.input_text.text),
+            model.input_text.cursor_position + 1,
+          ),
+        ),
+      ),
+      [],
+    )
     event.Char(char) -> {
-      #(Model(..model, input_text: model.input_text <> char), [])
+      let before =
+        string.slice(model.input_text.text, 0, model.input_text.cursor_position)
+      let after =
+        string.slice(
+          model.input_text.text,
+          model.input_text.cursor_position,
+          string.length(model.input_text.text)
+            - model.input_text.cursor_position,
+        )
+
+      #(
+        Model(
+          ..model,
+          input_text: ui.TextInputModel(
+            text: before <> char <> after,
+            cursor_position: model.input_text.cursor_position + 1,
+          ),
+        ),
+        [],
+      )
     }
     _ -> #(model, [])
   }

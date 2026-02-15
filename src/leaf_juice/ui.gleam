@@ -16,13 +16,17 @@ pub type Node(msg) {
   Text(String)
 
   Button(text: String, is_focused: Bool, on_click: fn() -> msg)
-  TextInput(text: String, is_focused: Bool, on_click: fn() -> msg)
+  TextInput(model: TextInputModel, is_focused: Bool, on_click: fn() -> msg)
 
   OutlinedBox(child: Node(msg))
 
   VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
   HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
   Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
+}
+
+pub type TextInputModel {
+  TextInputModel(text: String, cursor_position: Int)
 }
 
 pub type GridCell(msg) {
@@ -85,8 +89,8 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
     Button(text, is_focused, on_click) ->
       draw_button(context, text, is_focused, on_click)
 
-    TextInput(text, is_focused, on_click) ->
-      draw_text_input(context, text, is_focused, on_click)
+    TextInput(model, is_focused, on_click) ->
+      draw_text_input(context, model, is_focused, on_click)
 
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
@@ -165,12 +169,12 @@ fn draw_button(
 
 fn draw_text_input(
   context: Context,
-  text: String,
+  model: TextInputModel,
   is_focused: Bool,
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
   let rows_above = { context.height - 3 } / 2
-  let columns_before = { context.width - string.length(text) } / 2
+  let columns_before = { context.width - string.length(model.text) } / 2
 
   let fg = case is_focused {
     False -> style.Blue
@@ -204,7 +208,7 @@ fn draw_text_input(
 
       [
         command.MoveTo(context.left + columns_before, context.top + rows_above),
-        command.Print(text),
+        command.Print(model.text),
         command.ResetColor,
       ],
     ]),
@@ -223,7 +227,7 @@ fn draw_text_input(
     case is_focused {
       True -> [
         command.MoveTo(
-          context.left + columns_before + string.length(text),
+          context.left + columns_before + model.cursor_position,
           context.top + rows_above,
         ),
         command.ShowCursor,
