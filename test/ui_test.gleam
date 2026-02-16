@@ -250,3 +250,325 @@ pub fn draw_button_test() {
       [ui.MouseClickCallback(0, 0, 10, 10, handler)],
     )
 }
+
+pub fn draw_text_input_test() {
+  let handler = fn() { Nil }
+
+  assert ui.draw(ui.TextInput(ui.TextInputModel("", 0), False, handler), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundColor(style.Blue),
+        command.Print("┌"),
+        command.Print("──────"),
+        command.Print("┐"),
+        command.MoveTo(0, 7),
+        command.Print("└"),
+        command.Print("──────"),
+        command.Print("┘"),
+        command.MoveTo(0, 1),
+        command.Print("│"),
+        command.MoveTo(7, 1),
+        command.Print("│"),
+        command.MoveTo(0, 2),
+        command.Print("│"),
+        command.MoveTo(7, 2),
+        command.Print("│"),
+        command.MoveTo(0, 3),
+        command.Print("│"),
+        command.MoveTo(7, 3),
+        command.Print("│"),
+        command.MoveTo(0, 4),
+        command.Print("│"),
+        command.MoveTo(7, 4),
+        command.Print("│"),
+        command.MoveTo(0, 5),
+        command.Print("│"),
+        command.MoveTo(7, 5),
+        command.Print("│"),
+        command.MoveTo(0, 6),
+        command.Print("│"),
+        command.MoveTo(7, 6),
+        command.Print("│"),
+        command.MoveTo(1, 2),
+        command.Print(""),
+        command.ResetColor,
+      ],
+      [ui.MouseClickCallback(0, 0, 8, 8, handler)],
+    )
+
+  assert ui.draw(ui.TextInput(ui.TextInputModel("", 0), True, handler), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundColor(style.BrightBlue),
+        command.Print("┌"),
+        command.Print("──────"),
+        command.Print("┐"),
+        command.MoveTo(0, 7),
+        command.Print("└"),
+        command.Print("──────"),
+        command.Print("┘"),
+        command.MoveTo(0, 1),
+        command.Print("│"),
+        command.MoveTo(7, 1),
+        command.Print("│"),
+        command.MoveTo(0, 2),
+        command.Print("│"),
+        command.MoveTo(7, 2),
+        command.Print("│"),
+        command.MoveTo(0, 3),
+        command.Print("│"),
+        command.MoveTo(7, 3),
+        command.Print("│"),
+        command.MoveTo(0, 4),
+        command.Print("│"),
+        command.MoveTo(7, 4),
+        command.Print("│"),
+        command.MoveTo(0, 5),
+        command.Print("│"),
+        command.MoveTo(7, 5),
+        command.Print("│"),
+        command.MoveTo(0, 6),
+        command.Print("│"),
+        command.MoveTo(7, 6),
+        command.Print("│"),
+        command.MoveTo(1, 2),
+        command.Print(""),
+        command.ResetColor,
+        command.MoveTo(1, 2),
+        command.ShowCursor,
+      ],
+      [ui.MouseClickCallback(0, 0, 8, 8, handler)],
+    )
+
+  assert ui.draw(ui.TextInput(ui.TextInputModel("hello", 3), True, handler), #(
+      8,
+      8,
+    ))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.SetForegroundColor(style.BrightBlue),
+        command.Print("┌"),
+        command.Print("──────"),
+        command.Print("┐"),
+        command.MoveTo(0, 7),
+        command.Print("└"),
+        command.Print("──────"),
+        command.Print("┘"),
+        command.MoveTo(0, 1),
+        command.Print("│"),
+        command.MoveTo(7, 1),
+        command.Print("│"),
+        command.MoveTo(0, 2),
+        command.Print("│"),
+        command.MoveTo(7, 2),
+        command.Print("│"),
+        command.MoveTo(0, 3),
+        command.Print("│"),
+        command.MoveTo(7, 3),
+        command.Print("│"),
+        command.MoveTo(0, 4),
+        command.Print("│"),
+        command.MoveTo(7, 4),
+        command.Print("│"),
+        command.MoveTo(0, 5),
+        command.Print("│"),
+        command.MoveTo(7, 5),
+        command.Print("│"),
+        command.MoveTo(0, 6),
+        command.Print("│"),
+        command.MoveTo(7, 6),
+        command.Print("│"),
+        command.MoveTo(1, 2),
+        command.Print("hello"),
+        command.ResetColor,
+        command.MoveTo(4, 2),
+        command.ShowCursor,
+      ],
+      [ui.MouseClickCallback(0, 0, 8, 8, handler)],
+    )
+  // TODO: edge case where text doesn't fit horizonally. it needs to scroll so the cursor is visible
+  // TODO: edge case where the context is too small.
+}
+
+pub fn draw_outline_box_test() {
+  assert ui.draw(ui.OutlinedBox(ui.Empty), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("╭"),
+        command.Print("──────"),
+        command.Print("╮"),
+        command.MoveTo(0, 7),
+        command.Print("╰"),
+        command.Print("──────"),
+        command.Print("╯"),
+        command.MoveTo(0, 1),
+        command.Print("│"),
+        command.MoveTo(7, 1),
+        command.Print("│"),
+        command.MoveTo(0, 2),
+        command.Print("│"),
+        command.MoveTo(7, 2),
+        command.Print("│"),
+        command.MoveTo(0, 3),
+        command.Print("│"),
+        command.MoveTo(7, 3),
+        command.Print("│"),
+        command.MoveTo(0, 4),
+        command.Print("│"),
+        command.MoveTo(7, 4),
+        command.Print("│"),
+        command.MoveTo(0, 5),
+        command.Print("│"),
+        command.MoveTo(7, 5),
+        command.Print("│"),
+        command.MoveTo(0, 6),
+        command.Print("│"),
+        command.MoveTo(7, 6),
+        command.Print("│"),
+      ],
+      [],
+    )
+
+  assert ui.draw(ui.OutlinedBox(ui.Text("Hello")), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("╭"),
+        command.Print("──────"),
+        command.Print("╮"),
+        command.MoveTo(0, 7),
+        command.Print("╰"),
+        command.Print("──────"),
+        command.Print("╯"),
+        command.MoveTo(0, 1),
+        command.Print("│"),
+        command.MoveTo(7, 1),
+        command.Print("│"),
+        command.MoveTo(0, 2),
+        command.Print("│"),
+        command.MoveTo(7, 2),
+        command.Print("│"),
+        command.MoveTo(0, 3),
+        command.Print("│"),
+        command.MoveTo(7, 3),
+        command.Print("│"),
+        command.MoveTo(0, 4),
+        command.Print("│"),
+        command.MoveTo(7, 4),
+        command.Print("│"),
+        command.MoveTo(0, 5),
+        command.Print("│"),
+        command.MoveTo(7, 5),
+        command.Print("│"),
+        command.MoveTo(0, 6),
+        command.Print("│"),
+        command.MoveTo(7, 6),
+        command.Print("│"),
+        command.MoveTo(1, 1),
+        command.Print("Hello"),
+      ],
+      [],
+    )
+  // TODO: edge case where the context is too small.
+}
+
+pub fn draw_horizontal_split_test() {
+  assert ui.draw(
+      ui.HorizontalSplit(ui.Text("One"), ui.Text("Two"), ui.Percent(50)),
+      #(8, 8),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("One"),
+        command.MoveTo(0, 4),
+        command.Print("Two"),
+      ],
+      [],
+    )
+
+  assert ui.draw(ui.HorizontalSplit(ui.Text("1"), ui.Text("2"), ui.Cells(2)), #(
+      8,
+      8,
+    ))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("1"),
+        command.MoveTo(0, 2),
+        command.Print("2"),
+      ],
+      [],
+    )
+}
+
+pub fn draw_vertical_split_test() {
+  assert ui.draw(
+      ui.VerticalSplit(ui.Text("One"), ui.Text("Two"), ui.Percent(50)),
+      #(8, 8),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("One"),
+        command.MoveTo(4, 0),
+        command.Print("Two"),
+      ],
+      [],
+    )
+
+  assert ui.draw(ui.VerticalSplit(ui.Text("1"), ui.Text("2"), ui.Cells(2)), #(
+      8,
+      8,
+    ))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("1"),
+        command.MoveTo(2, 0),
+        command.Print("2"),
+      ],
+      [],
+    )
+}
+
+pub fn draw_grid_test() {
+  assert ui.draw(
+      ui.Grid(
+        [ui.Percent(20), ui.Auto, ui.Percent(10)],
+        [ui.Cells(2), ui.Auto],
+        [
+          ui.GridCell(ui.Text("1"), #(0, 0), #(0, 2)),
+          ui.GridCell(ui.Text("2"), #(1, 1), #(0, 1)),
+          ui.GridCell(ui.Text("3"), #(1, 1), #(2, 2)),
+        ],
+      ),
+      #(10, 10),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(10, 2),
+        command.Print("3"),
+        command.MoveTo(0, 2),
+        command.Print("2"),
+        command.MoveTo(0, 0),
+        command.Print("1"),
+      ],
+      [],
+    )
+  // TODO: There are a lot of edge cases in a grid
+}

@@ -245,8 +245,6 @@ fn draw_text_input(
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
   let rows_above = { context.height - 3 } / 2
-  let columns_before = { context.width - string.length(model.text) } / 2
-
   let fg = case is_focused {
     False -> style.Blue
     True -> style.BrightBlue
@@ -278,7 +276,7 @@ fn draw_text_input(
         |> list.flatten,
 
       [
-        command.MoveTo(context.left + columns_before, context.top + rows_above),
+        command.MoveTo(context.left + 1, context.top + rows_above),
         command.Print(model.text),
         command.ResetColor,
       ],
@@ -298,7 +296,7 @@ fn draw_text_input(
     case is_focused {
       True -> [
         command.MoveTo(
-          context.left + columns_before + model.cursor_position,
+          context.left + 1 + model.cursor_position,
           context.top + rows_above,
         ),
         command.ShowCursor,
