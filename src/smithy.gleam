@@ -148,7 +148,10 @@ fn view(model: Model) -> ui.Node(Msg) {
       ),
       ui.GridCell(
         ui.OutlinedBox(ui.Text(
-          int.to_string(model.width) <> ", " <> int.to_string(model.height),
+          int.to_string(model.width)
+          <> ", "
+          <> int.to_string(model.height)
+          <> " is the number of columns and rows in this the world of text that we are testing out the wrapping on right now just to see if it works or not or whatever, if it wraps. And also testing the total number of lines get truncated to fit in the context space, just truncation sorry, not gonna add anything else until I need it but I do want multi-line text, y'know",
         )),
         rows: #(0, 0),
         columns: #(1, 1),

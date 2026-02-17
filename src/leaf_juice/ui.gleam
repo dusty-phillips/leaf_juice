@@ -4,6 +4,7 @@ import etch/style
 import gleam/int
 import gleam/list
 import gleam/string
+import str
 
 pub type Size {
   Cells(Int)
@@ -146,15 +147,7 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
   case node {
     Empty -> DrawResponse([], [], [])
 
-    Text(text) ->
-      DrawResponse(
-        [
-          command.MoveTo(context.left, context.top),
-          command.Print(text),
-        ],
-        [],
-        [],
-      )
+    Text(text) -> draw_text(context, text)
 
     Button(text, is_focused, on_click) ->
       draw_button(context, text, is_focused, on_click)
@@ -172,6 +165,27 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 
     Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
+}
+
+fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
+  let lines =
+    text
+    |> str.wrap_at(context.width)
+    |> string.split("\n")
+    |> list.take(context.height)
+
+  DrawResponse(
+    lines
+      |> list.index_map(fn(line, row) {
+        [
+          command.MoveTo(context.left, context.top + row),
+          command.Print(line),
+        ]
+      })
+      |> list.flatten,
+    [],
+    [],
+  )
 }
 
 fn draw_button(

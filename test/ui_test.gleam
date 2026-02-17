@@ -112,6 +112,18 @@ pub fn draw_empty_test() {
 pub fn draw_text_test() {
   assert ui.draw(ui.Text("Hello"), #(20, 80))
     == #([command.HideCursor, command.MoveTo(0, 0), command.Print("Hello")], [])
+
+  assert ui.draw(ui.Text("Hello World"), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("Hello"),
+        command.MoveTo(0, 1),
+        command.Print("World"),
+      ],
+      [],
+    )
 }
 
 pub fn draw_button_test() {
