@@ -49,9 +49,16 @@ pub fn start(
       command.EnterRaw,
       command.EnterAlternateScreen,
       command.Clear(terminal.All),
-      command.MoveTo(0, 0),
-      command.EnableMouseCapture,
       command.HideCursor,
+      command.MoveTo(0, 0),
+      command.PushKeyboardEnhancementFlags([
+        event.DisambiguateEscapeCode,
+        event.ReportEventTypes,
+        event.ReportAlternateKeys,
+        event.ReportAllKeysAsEscapeCode,
+        event.ReportAssociatedText,
+      ]),
+      command.EnableMouseCapture,
     ])
 
     event.init_event_server()

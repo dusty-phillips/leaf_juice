@@ -74,20 +74,25 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
 
 fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case msg {
-    RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\t"), ..))) -> #(
-      Model(..model, focused: next_focus(model.focused)),
-      [],
-    )
+    RuntimeEmittedEvent(event.Key(event.KeyEvent(
+      code: event.Tab,
+      kind: event.Release,
+      ..,
+    ))) -> #(Model(..model, focused: next_focus(model.focused)), [])
 
     // Escape clears focus
-    RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\u{1b}"), ..))) -> #(
-      Model(..model, focused: FocusNone),
-      [],
-    )
+    RuntimeEmittedEvent(event.Key(event.KeyEvent(
+      code: event.Esc,
+      kind: event.Release,
+      ..,
+    ))) -> #(Model(..model, focused: FocusNone), [])
 
     // Enter invokes action
-    RuntimeEmittedEvent(event.Key(event.KeyEvent(code: event.Char("\r"), ..))) ->
-      confirm_focused(model)
+    RuntimeEmittedEvent(event.Key(event.KeyEvent(
+      code: event.Enter,
+      kind: event.Release,
+      ..,
+    ))) -> confirm_focused(model)
 
     RuntimeEmittedEvent(event.Key(key_event)) ->
       case model.focused {
@@ -100,9 +105,12 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
         )
         _ ->
           case key_event {
-            event.KeyEvent(code: event.Char("q"), ..) -> #(model, [
-              leaf_juice.Exit,
-            ])
+            event.KeyEvent(code: event.Char("q"), kind: event.Release, ..) -> #(
+              model,
+              [
+                leaf_juice.Exit,
+              ],
+            )
             _ -> #(
               Model(..model, last_key: event.to_string(key_event.code)),
               [],
