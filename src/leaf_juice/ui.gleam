@@ -9,7 +9,7 @@ import str
 pub type Size {
   Cells(Int)
   Percent(Int)
-  Auto
+  Fill
 }
 
 pub type Node(msg) {
@@ -561,7 +561,7 @@ fn calculate_size(size: Size, full_size: Int, auto_size: Int) -> Int {
         False -> full_size
       }
     Percent(percent) -> full_size * percent / 100
-    Auto -> auto_size
+    Fill -> auto_size
   }
 }
 
@@ -569,7 +569,7 @@ fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
   let auto_count =
     list.count(sizes, fn(size) {
       case size {
-        Auto -> True
+        Fill -> True
         _ -> False
       }
     })
@@ -578,7 +578,7 @@ fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
     sizes
     |> list.map(fn(size) {
       case size {
-        Auto -> 0
+        Fill -> 0
         Cells(cells) -> cells
         Percent(percent) -> full_size * percent / 100
       }
@@ -591,7 +591,7 @@ fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
     case size {
       Cells(cells) -> cells
       Percent(percent) -> full_size * percent / 100
-      Auto -> auto_size
+      Fill -> auto_size
     }
   })
 }

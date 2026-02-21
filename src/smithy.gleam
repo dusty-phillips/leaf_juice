@@ -162,7 +162,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 
 fn view(model: Model) -> ui.Node(Msg) {
   ui.OutlinedBox(
-    ui.Grid([ui.Cells(6), ui.Cells(7), ui.Auto], [ui.Cells(20), ui.Auto], [
+    ui.Grid([ui.Cells(6), ui.Cells(7), ui.Fill], [ui.Cells(20), ui.Fill], [
       ui.GridCell(
         ui.OutlinedBox(
           ui.Button(
