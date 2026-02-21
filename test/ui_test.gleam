@@ -126,6 +126,48 @@ pub fn draw_text_test() {
     )
 }
 
+pub fn draw_scrollable_text_test() {
+  assert ui.draw(
+      ui.ScrollableText(
+        ui.ScrollableTextModel("Foobar FizzBuzz Hello World", 2),
+        False,
+      ),
+      #(8, 8),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.SetForegroundColor(style.Grey),
+        command.MoveTo(0, 0),
+        command.Print("Hello"),
+        command.MoveTo(0, 1),
+        command.Print("World"),
+        command.ResetColor,
+      ],
+      [],
+    )
+
+  assert ui.draw(
+      ui.ScrollableText(
+        ui.ScrollableTextModel("Foobar FizzBuzz Hello World", 2),
+        True,
+      ),
+      #(8, 8),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.SetForegroundColor(style.White),
+        command.MoveTo(0, 0),
+        command.Print("Hello"),
+        command.MoveTo(0, 1),
+        command.Print("World"),
+        command.ResetColor,
+      ],
+      [],
+    )
+}
+
 pub fn draw_button_test() {
   let handler = fn() { Nil }
   assert ui.draw(ui.Button("Hello", False, handler), #(10, 10))

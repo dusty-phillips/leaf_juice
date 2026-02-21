@@ -19,6 +19,7 @@ type Model {
     last_key: String,
     last_button: String,
     input_text: ui.TextInputModel,
+    scrollable: ui.ScrollableTextModel,
     width: Int,
     height: Int,
     focused: Focus,
@@ -29,6 +30,7 @@ type Focus {
   FocusNone
   FocusOne
   FocusInput
+  FocusScrollable
   FocusLastKey
 }
 
@@ -36,14 +38,15 @@ fn next_focus(focus: Focus) -> Focus {
   case focus {
     FocusNone -> FocusOne
     FocusOne -> FocusInput
-    FocusInput -> FocusLastKey
+    FocusInput -> FocusScrollable
+    FocusScrollable -> FocusLastKey
     FocusLastKey -> FocusOne
   }
 }
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone | FocusInput -> #(model, [])
+    FocusNone | FocusInput | FocusScrollable -> #(model, [])
 
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
     FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
@@ -64,6 +67,11 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
       last_key: "None",
       last_button: "None",
       input_text: ui.TextInputModel("", cursor_position: 0),
+      scrollable: ui.ScrollableTextModel(
+        " is the number of columns and rows in this the world of text that we are testing out the wrapping on right now just to see if it works or not or whatever, if it wraps. And also testing the total number of lines get truncated to fit in the context space, just truncation sorry, not gonna add anything else until I need it but I do want multi-line text, y'know.
+              I guess I also want multi-line components, but that's a separate concern for later for now I just want lots of text right here for me to test with.",
+        2,
+      ),
       width:,
       height:,
       focused: FocusNone,
@@ -94,12 +102,19 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
       ..,
     ))) -> confirm_focused(model)
 
-    RuntimeEmittedEvent(event.Key(key_event)) ->
+    RuntimeEmittedEvent(event.Key(key_event) as event) ->
       case model.focused {
         FocusInput -> #(
           Model(
             ..model,
             input_text: ui.update_text_input(model.input_text, key_event),
+          ),
+          [],
+        )
+        FocusScrollable -> #(
+          Model(
+            ..model,
+            scrollable: ui.update_scrollable_text(model.scrollable, event),
           ),
           [],
         )
@@ -123,8 +138,20 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
       [],
     )
 
-    RuntimeEmittedEvent(event.Mouse(..))
-    | RuntimeEmittedEvent(event.FocusGained(..))
+    RuntimeEmittedEvent(event.Mouse(..) as event) -> {
+      case model.focused {
+        FocusScrollable -> #(
+          Model(
+            ..model,
+            scrollable: ui.update_scrollable_text(model.scrollable, event),
+          ),
+          [],
+        )
+        _ -> #(model, [])
+      }
+    }
+
+    RuntimeEmittedEvent(event.FocusGained(..))
     | RuntimeEmittedEvent(event.FocusLost(..)) -> #(model, [])
 
     UserInvokedOne -> #(Model(..model, last_button: "One"), [])
@@ -138,9 +165,11 @@ fn view(model: Model) -> ui.Node(Msg) {
     ui.Grid([ui.Cells(6), ui.Cells(7), ui.Auto], [ui.Cells(20), ui.Auto], [
       ui.GridCell(
         ui.OutlinedBox(
-          ui.Button("1", is_focused: model.focused == FocusOne, on_click: fn() {
-            UserInvokedOne
-          }),
+          ui.Button(
+            int.to_string(model.width) <> ", " <> int.to_string(model.height),
+            is_focused: model.focused == FocusOne,
+            on_click: fn() { UserInvokedOne },
+          ),
         ),
         rows: #(0, 0),
         columns: #(0, 0),
@@ -155,11 +184,9 @@ fn view(model: Model) -> ui.Node(Msg) {
         columns: #(0, 0),
       ),
       ui.GridCell(
-        ui.OutlinedBox(ui.Text(
-          int.to_string(model.width)
-          <> ", "
-          <> int.to_string(model.height)
-          <> " is the number of columns and rows in this the world of text that we are testing out the wrapping on right now just to see if it works or not or whatever, if it wraps. And also testing the total number of lines get truncated to fit in the context space, just truncation sorry, not gonna add anything else until I need it but I do want multi-line text, y'know",
+        ui.OutlinedBox(ui.ScrollableText(
+          model.scrollable,
+          is_focused: model.focused == FocusScrollable,
         )),
         rows: #(0, 0),
         columns: #(1, 1),

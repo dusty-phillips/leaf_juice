@@ -15,6 +15,7 @@ pub type Size {
 pub type Node(msg) {
   Empty
   Text(String)
+  ScrollableText(model: ScrollableTextModel, is_focused: Bool)
 
   Button(text: String, is_focused: Bool, on_click: fn() -> msg)
   TextInput(model: TextInputModel, is_focused: Bool, on_click: fn() -> msg)
@@ -24,6 +25,10 @@ pub type Node(msg) {
   VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
   HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
   Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
+}
+
+pub type ScrollableTextModel {
+  ScrollableTextModel(text: String, scroll_position: Int)
 }
 
 pub type TextInputModel {
@@ -103,6 +108,42 @@ pub fn update_text_input(
   }
 }
 
+pub fn update_scrollable_text(
+  model: ScrollableTextModel,
+  event: event.Event,
+) -> ScrollableTextModel {
+  case event {
+    event.Mouse(event.MouseEvent(kind: event.ScrollUp, ..), ..) ->
+      ScrollableTextModel(
+        ..model,
+        scroll_position: int.max(0, model.scroll_position - 1),
+      )
+
+    event.Mouse(event.MouseEvent(kind: event.ScrollDown, ..), ..) ->
+      ScrollableTextModel(..model, scroll_position: model.scroll_position + 1)
+
+    event.Key(event.KeyEvent(kind: event.Release, code: event.UpArrow, ..)) ->
+      ScrollableTextModel(
+        ..model,
+        scroll_position: int.max(0, model.scroll_position - 1),
+      )
+
+    event.Key(event.KeyEvent(kind: event.Release, code: event.DownArrow, ..)) ->
+      ScrollableTextModel(..model, scroll_position: model.scroll_position + 1)
+
+    event.Key(event.KeyEvent(kind: event.Release, code: event.PageUp, ..)) ->
+      ScrollableTextModel(
+        ..model,
+        scroll_position: int.max(0, model.scroll_position - 10),
+      )
+
+    event.Key(event.KeyEvent(kind: event.Release, code: event.PageDown, ..)) ->
+      ScrollableTextModel(..model, scroll_position: model.scroll_position + 10)
+
+    _ -> model
+  }
+}
+
 pub type GridCell(msg) {
   GridCell(node: Node(msg), rows: #(Int, Int), columns: #(Int, Int))
 }
@@ -153,6 +194,9 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 
     Text(text) -> draw_text(context, text)
 
+    ScrollableText(model, is_focused) ->
+      draw_scrollable_text(context, model, is_focused)
+
     Button(text, is_focused, on_click) ->
       draw_button(context, text, is_focused, on_click)
 
@@ -186,6 +230,39 @@ fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
           command.Print(line),
         ]
       })
+      |> list.flatten,
+    [],
+    [],
+  )
+}
+
+fn draw_scrollable_text(
+  context: Context,
+  model: ScrollableTextModel,
+  is_focused: Bool,
+) -> DrawResponse(msg) {
+  let fg = case is_focused {
+    False -> style.Grey
+    True -> style.White
+  }
+  let lines =
+    model.text
+    |> str.wrap_at(context.width)
+    |> string.split("\n")
+
+  let displayed_lines =
+    lines |> list.drop(model.scroll_position) |> list.take(context.height)
+
+  DrawResponse(
+    [
+      [command.SetForegroundColor(fg)],
+      displayed_lines
+        |> list.index_map(fn(line, row) {
+          [command.MoveTo(context.left, context.top + row), command.Print(line)]
+        })
+        |> list.flatten,
+      [command.ResetColor],
+    ]
       |> list.flatten,
     [],
     [],
