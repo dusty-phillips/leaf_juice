@@ -255,11 +255,16 @@ fn draw_scrollable_text(
     False -> style.Grey
     True -> style.White
   }
-  let lines =
+  let all_lines =
     text
-    |> str.wrap_at(context.width)
+    |> str.wrap_at(context.width - 2)
     |> string.split("\n")
+
+  let lines =
+    all_lines
     |> list.drop(scroll_position)
+
+  let line_count = all_lines |> list.length
 
   let #(displayed_lines, height) = case context.height {
     BoundedHeight(height) -> #(lines |> list.take(height), height)
@@ -268,21 +273,60 @@ fn draw_scrollable_text(
     UnboundedHeight -> #(lines, list.length(lines))
   }
 
+  let scrollbar_position =
+    int.min(height + 1, scroll_position * height / line_count + context.top)
+
   DrawResponse(
     [
       [command.SetForegroundColor(fg)],
       displayed_lines
         |> list.index_map(fn(line, row) {
-          [command.MoveTo(context.left, context.top + row), command.Print(line)]
+          [
+            command.MoveTo(context.left, context.top + row),
+            command.Print(line),
+          ]
         })
         |> list.flatten,
-      [command.ResetColor],
+      draw_scrollbar(
+        context.left + context.width - 1,
+        context.top,
+        height,
+        scrollbar_position,
+      ),
+      [
+        command.ResetColor,
+      ],
     ]
       |> list.flatten,
     [],
     [],
     height,
   )
+}
+
+fn draw_scrollbar(
+  x_position: Int,
+  top: Int,
+  height: Int,
+  scroll_position: Int,
+) -> List(command.Command) {
+  [
+    int.range(top, top + height, [], fn(acc, row) {
+      [
+        [
+          command.MoveTo(x_position, row),
+          command.Print("|"),
+        ],
+        acc,
+      ]
+      |> list.flatten
+    }),
+    [
+      command.MoveTo(x_position, scroll_position),
+      command.Print("▓"),
+    ],
+  ]
+  |> list.flatten
 }
 
 fn draw_button(
