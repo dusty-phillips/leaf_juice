@@ -47,6 +47,17 @@ fn next_focus(focus: Focus) -> Focus {
   }
 }
 
+fn prev_focus(focus: Focus) -> Focus {
+  case focus {
+    FocusNone -> FocusLastKey
+    FocusOne -> FocusLastKey
+    FocusInput -> FocusOne
+    FocusScrollable -> FocusInput
+    FocusScrollableText -> FocusScrollable
+    FocusLastKey -> FocusScrollableText
+  }
+}
+
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
     FocusNone | FocusInput | FocusScrollable | FocusScrollableText -> #(
@@ -92,8 +103,16 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     RuntimeEmittedEvent(event.Key(event.KeyEvent(
       code: event.Tab,
       kind: event.Release,
+      modifiers: event.Modifiers(shift: False, ..),
       ..,
     ))) -> #(Model(..model, focused: next_focus(model.focused)), [])
+
+    RuntimeEmittedEvent(event.Key(event.KeyEvent(
+      code: event.Backtab,
+      kind: event.Release,
+      modifiers: event.Modifiers(shift: True, ..),
+      ..,
+    ))) -> #(Model(..model, focused: prev_focus(model.focused)), [])
 
     // Escape clears focus
     RuntimeEmittedEvent(event.Key(event.KeyEvent(
