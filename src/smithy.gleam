@@ -128,6 +128,23 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
       ..,
     ))) -> confirm_focused(model)
 
+    RuntimeEmittedEvent(event.Key(
+      event.KeyEvent(code: event.Char("q"), kind: event.Release, ..) as key_event,
+    )) -> {
+      case model.focused {
+        FocusInput -> #(
+          Model(
+            ..model,
+            input_text: ui.update_text_input(model.input_text, key_event),
+          ),
+          [],
+        )
+        _ -> #(model, [
+          leaf_juice.Exit,
+        ])
+      }
+    }
+
     RuntimeEmittedEvent(event.Key(key_event) as event) ->
       case model.focused {
         FocusInput -> #(
@@ -157,19 +174,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           [],
         )
 
-        _ ->
-          case key_event {
-            event.KeyEvent(code: event.Char("q"), kind: event.Release, ..) -> #(
-              model,
-              [
-                leaf_juice.Exit,
-              ],
-            )
-            _ -> #(
-              Model(..model, last_key: event.to_string(key_event.code)),
-              [],
-            )
-          }
+        _ -> #(Model(..model, last_key: event.to_string(key_event.code)), [])
       }
 
     RuntimeEmittedEvent(event.Resize(width, height)) -> #(
