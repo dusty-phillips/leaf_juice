@@ -20,6 +20,7 @@ type Model {
     last_button: String,
     input_text: ui.TextInputModel,
     scrollable_text: #(String, Int),
+    scrollable_position: Int,
     width: Int,
     height: Int,
     focused: Focus,
@@ -30,6 +31,7 @@ type Focus {
   FocusNone
   FocusOne
   FocusInput
+  FocusScrollable
   FocusScrollableText
   FocusLastKey
 }
@@ -38,7 +40,8 @@ fn next_focus(focus: Focus) -> Focus {
   case focus {
     FocusNone -> FocusOne
     FocusOne -> FocusInput
-    FocusInput -> FocusScrollableText
+    FocusInput -> FocusScrollable
+    FocusScrollable -> FocusScrollableText
     FocusScrollableText -> FocusLastKey
     FocusLastKey -> FocusOne
   }
@@ -46,7 +49,10 @@ fn next_focus(focus: Focus) -> Focus {
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone | FocusInput | FocusScrollableText -> #(model, [])
+    FocusNone | FocusInput | FocusScrollable | FocusScrollableText -> #(
+      model,
+      [],
+    )
 
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
     FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
@@ -72,6 +78,7 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
               I guess I also want multi-line components, but that's a separate concern for later for now I just want lots of text right here for me to test with.",
         2,
       ),
+      scrollable_position: 0,
       width:,
       height:,
       focused: FocusNone,
@@ -111,6 +118,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           ),
           [],
         )
+
         FocusScrollableText -> #(
           Model(..model, scrollable_text: #(
             model.scrollable_text.0,
@@ -118,6 +126,18 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           )),
           [],
         )
+
+        FocusScrollable -> #(
+          Model(
+            ..model,
+            scrollable_position: ui.update_scrollable(
+              model.scrollable_position,
+              event,
+            ),
+          ),
+          [],
+        )
+
         _ ->
           case key_event {
             event.KeyEvent(code: event.Char("q"), kind: event.Release, ..) -> #(
@@ -147,6 +167,18 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           )),
           [],
         )
+
+        FocusScrollable -> #(
+          Model(
+            ..model,
+            scrollable_position: ui.update_scrollable(
+              model.scrollable_position,
+              event,
+            ),
+          ),
+          [],
+        )
+
         _ -> #(model, [])
       }
     }
@@ -193,7 +225,7 @@ fn view(model: Model) -> ui.Node(Msg) {
             ui.Text("12\n13\n14"),
             ui.Text("15\n16\n17"),
           ],
-          2,
+          model.scrollable_position,
         ),
         rows: #(2, 2),
         columns: #(0, 0),

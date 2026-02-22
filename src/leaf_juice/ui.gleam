@@ -630,29 +630,37 @@ fn draw_scrollable(
       children,
     )
 
-  // if scroll_position = 0 we don't need to truncate anything from the top
-  // else we truncate everything up to the moveTo that has a y >= to context.top
-  let commands = case scroll_position {
-    0 -> stack_response.commands
-    _ ->
-      list.drop_while(stack_response.commands, fn(command) {
-        case command {
-          command.MoveTo(_, y) if y >= context.top -> False
-          _ -> True
-        }
-      })
-  }
-
-  // either way we truncate everything after moveTo that has a y >= context.top + height
   let commands =
-    list.take_while(commands, fn(command) {
-      case command {
-        command.MoveTo(_, y) if y >= context.top + height -> False
-        _ -> True
-      }
-    })
+    clip_commands(stack_response.commands, context.top, context.top + height)
 
   DrawResponse(..stack_response, commands:)
+}
+
+fn clip_commands(
+  commands: List(command.Command),
+  top: Int,
+  bottom: Int,
+) -> List(command.Command) {
+  commands
+  |> list.fold(#([], True), fn(acc, cmd) {
+    let #(result, visible) = acc
+    case cmd {
+      command.MoveTo(_, y) -> {
+        let in_view = y >= top && y < bottom
+        case in_view {
+          True -> #([cmd, ..result], True)
+          False -> #(result, False)
+        }
+      }
+      _ ->
+        case visible {
+          True -> #([cmd, ..result], visible)
+          False -> #(result, visible)
+        }
+    }
+  })
+  |> fn(acc) { acc.0 }
+  |> list.reverse
 }
 
 fn draw_grid(
