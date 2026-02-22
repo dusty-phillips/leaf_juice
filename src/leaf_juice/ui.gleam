@@ -15,7 +15,7 @@ pub type Size {
 pub type Node(msg) {
   Empty
   Text(String)
-  ScrollableText(model: ScrollableTextModel, is_focused: Bool)
+  ScrollableText(text: String, scroll_position: Int, is_focused: Bool)
 
   Button(text: String, is_focused: Bool, on_click: fn() -> msg)
   TextInput(model: TextInputModel, is_focused: Bool, on_click: fn() -> msg)
@@ -25,11 +25,8 @@ pub type Node(msg) {
   VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
   HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
   VerticalStack(children: List(Node(msg)))
+  Scrollable(children: List(Node(msg)), scroll_position: Int)
   Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
-}
-
-pub type ScrollableTextModel {
-  ScrollableTextModel(text: String, scroll_position: Int)
 }
 
 pub type TextInputModel {
@@ -109,39 +106,27 @@ pub fn update_text_input(
   }
 }
 
-pub fn update_scrollable_text(
-  model: ScrollableTextModel,
-  event: event.Event,
-) -> ScrollableTextModel {
+pub fn update_scrollable(scroll_position: Int, event: event.Event) -> Int {
   case event {
     event.Mouse(event.MouseEvent(kind: event.ScrollUp, ..), ..) ->
-      ScrollableTextModel(
-        ..model,
-        scroll_position: int.max(0, model.scroll_position - 1),
-      )
+      int.max(0, scroll_position - 1)
 
     event.Mouse(event.MouseEvent(kind: event.ScrollDown, ..), ..) ->
-      ScrollableTextModel(..model, scroll_position: model.scroll_position + 1)
+      scroll_position + 1
 
     event.Key(event.KeyEvent(kind: event.Release, code: event.UpArrow, ..)) ->
-      ScrollableTextModel(
-        ..model,
-        scroll_position: int.max(0, model.scroll_position - 1),
-      )
+      int.max(0, scroll_position - 1)
 
     event.Key(event.KeyEvent(kind: event.Release, code: event.DownArrow, ..)) ->
-      ScrollableTextModel(..model, scroll_position: model.scroll_position + 1)
+      scroll_position + 1
 
     event.Key(event.KeyEvent(kind: event.Release, code: event.PageUp, ..)) ->
-      ScrollableTextModel(
-        ..model,
-        scroll_position: int.max(0, model.scroll_position - 10),
-      )
+      int.max(0, scroll_position - 10)
 
     event.Key(event.KeyEvent(kind: event.Release, code: event.PageDown, ..)) ->
-      ScrollableTextModel(..model, scroll_position: model.scroll_position + 10)
+      scroll_position + 10
 
-    _ -> model
+    _ -> scroll_position
   }
 }
 
@@ -205,8 +190,8 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 
     Text(text) -> draw_text(context, text)
 
-    ScrollableText(model, is_focused) ->
-      draw_scrollable_text(context, model, is_focused)
+    ScrollableText(text, scroll_position, is_focused) ->
+      draw_scrollable_text(context, text, scroll_position, is_focused)
 
     Button(text, is_focused, on_click) ->
       draw_button(context, text, is_focused, on_click)
@@ -223,6 +208,9 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
       draw_horizontal_split(context, upper, lower, upper_size)
 
     VerticalStack(children) -> draw_vertical_stack(context, children)
+
+    Scrollable(children, scroll_position) ->
+      draw_scrollable(context, children, scroll_position)
 
     Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
@@ -259,7 +247,8 @@ fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
 
 fn draw_scrollable_text(
   context: Context,
-  model: ScrollableTextModel,
+  text: String,
+  scroll_position: Int,
   is_focused: Bool,
 ) -> DrawResponse(msg) {
   let fg = case is_focused {
@@ -267,10 +256,10 @@ fn draw_scrollable_text(
     True -> style.White
   }
   let lines =
-    model.text
+    text
     |> str.wrap_at(context.width)
     |> string.split("\n")
-    |> list.drop(model.scroll_position)
+    |> list.drop(scroll_position)
 
   let #(displayed_lines, height) = case context.height {
     BoundedHeight(height) -> #(lines |> list.take(height), height)
@@ -619,6 +608,51 @@ fn draw_vertical_stack(
       |> list.flatten,
     height: responses |> list.map(fn(response) { response.height }) |> int.sum,
   )
+}
+
+fn draw_scrollable(
+  context: Context,
+  children: List(Node(msg)),
+  scroll_position: Int,
+) -> DrawResponse(msg) {
+  let height = case context.height {
+    BoundedHeight(height) -> height
+    UnboundedHeight -> panic as "Cannot nest a scrollable in a scrollable"
+  }
+
+  let stack_response =
+    draw_vertical_stack(
+      Context(
+        ..context,
+        top: context.top - scroll_position,
+        height: UnboundedHeight,
+      ),
+      children,
+    )
+
+  // if scroll_position = 0 we don't need to truncate anything from the top
+  // else we truncate everything up to the moveTo that has a y >= to context.top
+  let commands = case scroll_position {
+    0 -> stack_response.commands
+    _ ->
+      list.drop_while(stack_response.commands, fn(command) {
+        case command {
+          command.MoveTo(_, y) if y >= context.top -> False
+          _ -> True
+        }
+      })
+  }
+
+  // either way we truncate everything after moveTo that has a y >= context.top + height
+  let commands =
+    list.take_while(commands, fn(command) {
+      case command {
+        command.MoveTo(_, y) if y >= context.top + height -> False
+        _ -> True
+      }
+    })
+
+  DrawResponse(..stack_response, commands:)
 }
 
 fn draw_grid(

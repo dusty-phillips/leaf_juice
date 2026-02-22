@@ -127,13 +127,10 @@ pub fn draw_text_test() {
 }
 
 pub fn draw_scrollable_text_test() {
-  assert ui.draw(
-      ui.ScrollableText(
-        ui.ScrollableTextModel("Foobar FizzBuzz Hello World", 2),
-        False,
-      ),
-      #(8, 8),
-    )
+  assert ui.draw(ui.ScrollableText("Foobar FizzBuzz Hello World", 2, False), #(
+      8,
+      8,
+    ))
     == #(
       [
         command.HideCursor,
@@ -147,13 +144,10 @@ pub fn draw_scrollable_text_test() {
       [],
     )
 
-  assert ui.draw(
-      ui.ScrollableText(
-        ui.ScrollableTextModel("Foobar FizzBuzz Hello World", 2),
-        True,
-      ),
-      #(8, 8),
-    )
+  assert ui.draw(ui.ScrollableText("Foobar FizzBuzz Hello World", 2, True), #(
+      8,
+      8,
+    ))
     == #(
       [
         command.HideCursor,
@@ -548,6 +542,30 @@ pub fn draw_vertical_stack_test() {
         command.Print("3"),
         command.MoveTo(0, 3),
         command.Print("4"),
+      ],
+      [],
+    )
+}
+
+pub fn draw_scrollable_test() {
+  assert ui.draw(
+      ui.Scrollable(
+        [ui.Text("1\n2"), ui.Text("3\n4"), ui.Text("5\n6"), ui.Text("7\n8")],
+        2,
+      ),
+      #(4, 4),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("3"),
+        command.MoveTo(0, 1),
+        command.Print("4"),
+        command.MoveTo(0, 2),
+        command.Print("5"),
+        command.MoveTo(0, 3),
+        command.Print("6"),
       ],
       [],
     )

@@ -19,7 +19,7 @@ type Model {
     last_key: String,
     last_button: String,
     input_text: ui.TextInputModel,
-    scrollable: ui.ScrollableTextModel,
+    scrollable_text: #(String, Int),
     width: Int,
     height: Int,
     focused: Focus,
@@ -30,7 +30,7 @@ type Focus {
   FocusNone
   FocusOne
   FocusInput
-  FocusScrollable
+  FocusScrollableText
   FocusLastKey
 }
 
@@ -38,15 +38,15 @@ fn next_focus(focus: Focus) -> Focus {
   case focus {
     FocusNone -> FocusOne
     FocusOne -> FocusInput
-    FocusInput -> FocusScrollable
-    FocusScrollable -> FocusLastKey
+    FocusInput -> FocusScrollableText
+    FocusScrollableText -> FocusLastKey
     FocusLastKey -> FocusOne
   }
 }
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone | FocusInput | FocusScrollable -> #(model, [])
+    FocusNone | FocusInput | FocusScrollableText -> #(model, [])
 
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
     FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
@@ -67,7 +67,7 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
       last_key: "None",
       last_button: "None",
       input_text: ui.TextInputModel("", cursor_position: 0),
-      scrollable: ui.ScrollableTextModel(
+      scrollable_text: #(
         " is the number of columns and rows in this the world of text that we are testing out the wrapping on right now just to see if it works or not or whatever, if it wraps. And also testing the total number of lines get truncated to fit in the context space, just truncation sorry, not gonna add anything else until I need it but I do want multi-line text, y'know.
               I guess I also want multi-line components, but that's a separate concern for later for now I just want lots of text right here for me to test with.",
         2,
@@ -111,11 +111,11 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           ),
           [],
         )
-        FocusScrollable -> #(
-          Model(
-            ..model,
-            scrollable: ui.update_scrollable_text(model.scrollable, event),
-          ),
+        FocusScrollableText -> #(
+          Model(..model, scrollable_text: #(
+            model.scrollable_text.0,
+            ui.update_scrollable(model.scrollable_text.1, event),
+          )),
           [],
         )
         _ ->
@@ -140,11 +140,11 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
 
     RuntimeEmittedEvent(event.Mouse(..) as event) -> {
       case model.focused {
-        FocusScrollable -> #(
-          Model(
-            ..model,
-            scrollable: ui.update_scrollable_text(model.scrollable, event),
-          ),
+        FocusScrollableText -> #(
+          Model(..model, scrollable_text: #(
+            model.scrollable_text.0,
+            ui.update_scrollable(model.scrollable_text.1, event),
+          )),
           [],
         )
         _ -> #(model, [])
@@ -184,19 +184,25 @@ fn view(model: Model) -> ui.Node(Msg) {
         columns: #(0, 0),
       ),
       ui.GridCell(
-        ui.VerticalStack([
-          ui.Text("1\n2"),
-          ui.Text("3\n4"),
-          ui.OutlinedBox(ui.Text("5\n6\n7")),
-          ui.Text("eight nine ten eleven"),
-        ]),
+        ui.Scrollable(
+          [
+            ui.Text("1\n2"),
+            ui.Text("3\n4"),
+            ui.OutlinedBox(ui.Text("5\n6\n7")),
+            ui.Text("eight nine ten eleven"),
+            ui.Text("12\n13\n14"),
+            ui.Text("15\n16\n17"),
+          ],
+          2,
+        ),
         rows: #(2, 2),
         columns: #(0, 0),
       ),
       ui.GridCell(
         ui.OutlinedBox(ui.ScrollableText(
-          model.scrollable,
-          is_focused: model.focused == FocusScrollable,
+          model.scrollable_text.0,
+          model.scrollable_text.1,
+          is_focused: model.focused == FocusScrollableText,
         )),
         rows: #(0, 0),
         columns: #(1, 1),
