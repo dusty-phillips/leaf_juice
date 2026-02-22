@@ -535,6 +535,24 @@ pub fn draw_outline_box_test() {
   // TODO: edge case where the context is too small.
 }
 
+pub fn draw_vertical_stack_test() {
+  assert ui.draw(ui.VerticalStack([ui.Text("1\n2"), ui.Text("3\n4")]), #(4, 4))
+    == #(
+      [
+        command.HideCursor,
+        command.MoveTo(0, 0),
+        command.Print("1"),
+        command.MoveTo(0, 1),
+        command.Print("2"),
+        command.MoveTo(0, 2),
+        command.Print("3"),
+        command.MoveTo(0, 3),
+        command.Print("4"),
+      ],
+      [],
+    )
+}
+
 pub fn draw_horizontal_split_test() {
   assert ui.draw(
       ui.HorizontalSplit(ui.Text("One"), ui.Text("Two"), ui.Percent(50)),

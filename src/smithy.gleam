@@ -180,7 +180,17 @@ fn view(model: Model) -> ui.Node(Msg) {
           is_focused: model.focused == FocusInput,
           on_click: fn() { UserClickedInput },
         ),
-        rows: #(1, 2),
+        rows: #(1, 1),
+        columns: #(0, 0),
+      ),
+      ui.GridCell(
+        ui.VerticalStack([
+          ui.Text("1\n2"),
+          ui.Text("3\n4"),
+          ui.OutlinedBox(ui.Text("5\n6\n7")),
+          ui.Text("eight nine ten eleven"),
+        ]),
+        rows: #(2, 2),
         columns: #(0, 0),
       ),
       ui.GridCell(

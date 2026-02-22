@@ -24,6 +24,7 @@ pub type Node(msg) {
 
   VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
   HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
+  VerticalStack(children: List(Node(msg)))
   Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
 }
 
@@ -221,6 +222,8 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
     HorizontalSplit(upper, lower, upper_size) ->
       draw_horizontal_split(context, upper, lower, upper_size)
 
+    VerticalStack(children) -> draw_vertical_stack(context, children)
+
     Grid(rows, columns, children) -> draw_grid(context, rows, columns, children)
   }
 }
@@ -228,8 +231,11 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
   let all_lines =
     text
-    |> str.wrap_at(context.width)
     |> string.split("\n")
+    |> list.map(fn(line) {
+      line |> str.wrap_at(context.width) |> string.split("\n")
+    })
+    |> list.flatten
 
   let #(lines, height) = case context.height {
     BoundedHeight(height) -> #(list.take(all_lines, height), height)
@@ -555,6 +561,47 @@ fn draw_horizontal_split(
   )
 }
 
+fn draw_vertical_stack(
+  context: Context,
+  children: List(Node(msg)),
+) -> DrawResponse(msg) {
+  let responses =
+    list.fold(children, [], fn(previous_responses, child) {
+      let accumulated_height =
+        list.fold(previous_responses, 0, fn(total_height, draw_response) {
+          let DrawResponse(height:, ..) = draw_response
+          total_height + height
+        })
+
+      [
+        draw_in_context(
+          child,
+          Context(
+            context.left,
+            context.top + accumulated_height,
+            context.width,
+            UnboundedHeight,
+          ),
+        ),
+        ..previous_responses
+      ]
+    })
+    |> list.reverse
+
+  DrawResponse(
+    commands: responses
+      |> list.map(fn(response) { response.commands })
+      |> list.flatten,
+    callbacks: responses
+      |> list.map(fn(response) { response.callbacks })
+      |> list.flatten,
+    after_commands: responses
+      |> list.map(fn(response) { response.after_commands })
+      |> list.flatten,
+    height: responses |> list.map(fn(response) { response.height }) |> int.sum,
+  )
+}
+
 fn draw_grid(
   context: Context,
   rows: List(Size),
@@ -578,7 +625,7 @@ fn draw_grid(
         child_commands,
         child_callbacks,
         child_after,
-        child_height,
+        _child_height,
       ) =
         draw_in_context(
           child.node,
