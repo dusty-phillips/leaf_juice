@@ -158,8 +158,13 @@ pub type MouseCallback(msg) {
   )
 }
 
+type ContextHeight {
+  BoundedHeight(Int)
+  UnboundedHeight
+}
+
 type Context {
-  Context(left: Int, top: Int, width: Int, height: Int)
+  Context(left: Int, top: Int, width: Int, height: ContextHeight)
 }
 
 type DrawResponse(msg) {
@@ -170,6 +175,7 @@ type DrawResponse(msg) {
     // I don't like this it is a hack but it is the way I came up with
     // to move the cursor to a focused input without managing focus
     after_commands: List(command.Command),
+    height: Int,
   )
 }
 
@@ -180,8 +186,8 @@ pub fn draw(
 ) -> #(List(command.Command), List(MouseCallback(msg))) {
   let #(columns, rows) = window_size
 
-  let DrawResponse(commands, callbacks, after_commands) =
-    draw_in_context(node, Context(0, 0, columns, rows))
+  let DrawResponse(commands, callbacks, after_commands, _height) =
+    draw_in_context(node, Context(0, 0, columns, BoundedHeight(rows)))
 
   let commands = list.flatten([[command.HideCursor], commands, after_commands])
 
@@ -190,7 +196,11 @@ pub fn draw(
 
 fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
   case node {
-    Empty -> DrawResponse([], [], [])
+    Empty ->
+      DrawResponse([], [], [], case context.height {
+        BoundedHeight(height) -> height
+        UnboundedHeight -> 0
+      })
 
     Text(text) -> draw_text(context, text)
 
@@ -216,11 +226,15 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 }
 
 fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
-  let lines =
+  let all_lines =
     text
     |> str.wrap_at(context.width)
     |> string.split("\n")
-    |> list.take(context.height)
+
+  let #(lines, height) = case context.height {
+    BoundedHeight(height) -> #(list.take(all_lines, height), height)
+    UnboundedHeight -> #(all_lines, list.length(all_lines))
+  }
 
   DrawResponse(
     lines
@@ -233,6 +247,7 @@ fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
       |> list.flatten,
     [],
     [],
+    height,
   )
 }
 
@@ -249,9 +264,14 @@ fn draw_scrollable_text(
     model.text
     |> str.wrap_at(context.width)
     |> string.split("\n")
+    |> list.drop(model.scroll_position)
 
-  let displayed_lines =
-    lines |> list.drop(model.scroll_position) |> list.take(context.height)
+  let #(displayed_lines, height) = case context.height {
+    BoundedHeight(height) -> #(lines |> list.take(height), height)
+    // Doesn't make a lot of sense to have unbounded height with a scrollable
+    // (i.e. a scrollable in a scrollable), but gleam makes us support it.
+    UnboundedHeight -> #(lines, list.length(lines))
+  }
 
   DrawResponse(
     [
@@ -266,6 +286,7 @@ fn draw_scrollable_text(
       |> list.flatten,
     [],
     [],
+    height,
   )
 }
 
@@ -275,7 +296,13 @@ fn draw_button(
   is_focused: Bool,
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
-  let rows_above = { context.height - 1 } / 2
+  let height = case context.height {
+    BoundedHeight(height) -> height
+    // one cell above and below one line of text
+    UnboundedHeight -> 3
+  }
+
+  let rows_above = { height - 1 } / 2
   let columns_before = { context.width - string.length(text) } / 2
   let text = string.slice(text, 0, context.width)
 
@@ -309,7 +336,7 @@ fn draw_button(
         )),
       ],
 
-      list.range(context.top + rows_above + 2, context.top + context.height - 1)
+      list.range(context.top + rows_above + 2, context.top + height - 1)
         |> list.flat_map(fn(row) {
           [
             command.MoveTo(context.left, row),
@@ -325,11 +352,12 @@ fn draw_button(
         context.left,
         context.top,
         context.width,
-        context.height,
+        height,
         on_click,
       ),
     ],
     [],
+    height,
   )
 }
 
@@ -339,7 +367,13 @@ fn draw_text_input(
   is_focused: Bool,
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
-  let rows_above = { context.height - 3 } / 2
+  let height = case context.height {
+    BoundedHeight(height) -> height
+    // Two borders and one line of text
+    UnboundedHeight -> 3
+  }
+
+  let rows_above = { height - 3 } / 2
   let fg = case is_focused {
     False -> style.Blue
     True -> style.BrightBlue
@@ -353,13 +387,13 @@ fn draw_text_input(
         command.Print("┌"),
         command.Print(string.repeat("─", context.width - 2)),
         command.Print("┐"),
-        command.MoveTo(context.left, context.top + context.height - 1),
+        command.MoveTo(context.left, context.top + height - 1),
         command.Print("└"),
         command.Print(string.repeat("─", context.width - 2)),
         command.Print("┘"),
       ],
 
-      list.range(context.top + 1, context.top + context.height - 2)
+      list.range(context.top + 1, context.top + height - 2)
         |> list.map(fn(row) {
           [
             command.MoveTo(context.left, row),
@@ -381,7 +415,7 @@ fn draw_text_input(
         context.left,
         context.top,
         context.width,
-        context.height,
+        height,
         on_click,
       ),
     ],
@@ -398,18 +432,22 @@ fn draw_text_input(
       ]
       False -> []
     },
+    height,
   )
 }
 
 fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
-  let DrawResponse(child_commands, child_callbacks, child_after) =
+  let DrawResponse(child_commands, child_callbacks, child_after, child_height) =
     draw_in_context(
       child,
       Context(
         context.left + 1,
         context.top + 1,
         context.width - 2,
-        context.height - 2,
+        case context.height {
+          BoundedHeight(height) -> BoundedHeight(height - 2)
+          UnboundedHeight -> UnboundedHeight
+        },
       ),
     )
 
@@ -420,13 +458,13 @@ fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
         command.Print("╭"),
         command.Print(string.repeat("─", context.width - 2)),
         command.Print("╮"),
-        command.MoveTo(context.left, context.top + context.height - 1),
+        command.MoveTo(context.left, context.top + child_height + 1),
         command.Print("╰"),
         command.Print(string.repeat("─", context.width - 2)),
         command.Print("╯"),
       ],
 
-      list.range(context.top + 1, context.top + context.height - 2)
+      list.range(context.top + 1, context.top + child_height)
         |> list.map(fn(row) {
           [
             command.MoveTo(context.left, row),
@@ -440,6 +478,7 @@ fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
     ]),
     child_callbacks,
     child_after,
+    child_height + 2,
   )
 }
 
@@ -450,12 +489,12 @@ fn draw_vertical_split(
   left_size: Size,
 ) -> DrawResponse(msg) {
   let left_size = calculate_size(left_size, context.width, context.width / 2)
-  let DrawResponse(left_commands, left_callbacks, left_after) =
+  let DrawResponse(left_commands, left_callbacks, left_after, left_height) =
     draw_in_context(
       left,
       Context(context.left, context.top, left_size, context.height),
     )
-  let DrawResponse(right_commands, right_callbacks, right_after) =
+  let DrawResponse(right_commands, right_callbacks, right_after, right_height) =
     draw_in_context(
       right,
       Context(
@@ -470,6 +509,7 @@ fn draw_vertical_split(
     list.flatten([left_commands, right_commands]),
     list.flatten([left_callbacks, right_callbacks]),
     list.flatten([left_after, right_after]),
+    int.max(left_height, right_height),
   )
 }
 
@@ -479,21 +519,31 @@ fn draw_horizontal_split(
   lower: Node(msg),
   upper_size: Size,
 ) -> DrawResponse(msg) {
-  let upper_size =
-    calculate_size(upper_size, context.height, context.height / 2)
-  let DrawResponse(upper_commands, upper_callbacks, upper_after) =
+  let upper_size = case context.height {
+    BoundedHeight(height) ->
+      BoundedHeight(calculate_size(upper_size, height, height / 2))
+    UnboundedHeight -> UnboundedHeight
+  }
+
+  let DrawResponse(upper_commands, upper_callbacks, upper_after, upper_height) =
     draw_in_context(
       upper,
       Context(context.left, context.top, context.width, upper_size),
     )
-  let DrawResponse(lower_commands, lower_callbacks, lower_after) =
+
+  let lower_size = case context.height {
+    BoundedHeight(height) -> BoundedHeight(height - upper_height)
+    UnboundedHeight -> UnboundedHeight
+  }
+
+  let DrawResponse(lower_commands, lower_callbacks, lower_after, lower_height) =
     draw_in_context(
       lower,
       Context(
         context.left,
-        context.top + upper_size,
+        context.top + upper_height,
         context.width,
-        context.height - upper_size,
+        lower_size,
       ),
     )
 
@@ -501,6 +551,7 @@ fn draw_horizontal_split(
     list.flatten([upper_commands, lower_commands]),
     list.flatten([upper_callbacks, lower_callbacks]),
     list.flatten([upper_after, lower_after]),
+    upper_height + lower_height,
   )
 }
 
@@ -510,8 +561,8 @@ fn draw_grid(
   columns: List(Size),
   children: List(GridCell(msg)),
 ) -> DrawResponse(msg) {
-  let row_sizes = calculate_sizes(rows, context.height)
-  let col_sizes = calculate_sizes(columns, context.width)
+  let col_sizes = calculate_col_sizes(columns, context.width)
+  let row_sizes = calculate_row_sizes(rows, context.height)
 
   let accumulated =
     list.fold(children, #([], [], []), fn(accumulator, child) {
@@ -523,14 +574,19 @@ fn draw_grid(
       let #(left, width) =
         calculate_span(col_sizes, col_start, col_end + 1 - col_start)
 
-      let DrawResponse(child_commands, child_callbacks, child_after) =
+      let DrawResponse(
+        child_commands,
+        child_callbacks,
+        child_after,
+        child_height,
+      ) =
         draw_in_context(
           child.node,
           Context(
             left: context.left + left,
             top: context.top + top,
             width: width,
-            height: height,
+            height: BoundedHeight(height),
           ),
         )
 
@@ -544,6 +600,7 @@ fn draw_grid(
     list.flatten(accumulated.0),
     list.flatten(accumulated.1),
     list.flatten(accumulated.2),
+    int.sum(row_sizes),
   )
 }
 
@@ -565,9 +622,9 @@ fn calculate_size(size: Size, full_size: Int, auto_size: Int) -> Int {
   }
 }
 
-fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
+fn calculate_col_sizes(widths: List(Size), full_width: Int) -> List(Int) {
   let auto_count =
-    list.count(sizes, fn(size) {
+    list.count(widths, fn(size) {
       case size {
         Fill -> True
         _ -> False
@@ -575,23 +632,68 @@ fn calculate_sizes(sizes: List(Size), full_size: Int) -> List(Int) {
     })
 
   let cells_used =
-    sizes
+    widths
     |> list.map(fn(size) {
       case size {
         Fill -> 0
         Cells(cells) -> cells
-        Percent(percent) -> full_size * percent / 100
+        Percent(percent) -> full_width * percent / 100
       }
     })
     |> int.sum
 
-  let auto_size = { full_size - cells_used } / auto_count
+  let auto_size = { full_width - cells_used } / auto_count
 
-  list.map(sizes, fn(size) {
+  list.map(widths, fn(size) {
     case size {
       Cells(cells) -> cells
-      Percent(percent) -> full_size * percent / 100
+      Percent(percent) -> full_width * percent / 100
       Fill -> auto_size
+    }
+  })
+}
+
+fn calculate_row_sizes(
+  heights: List(Size),
+  full_height: ContextHeight,
+) -> List(Int) {
+  let height = case list.contains(heights, Fill), full_height {
+    True, UnboundedHeight ->
+      panic as "Fill row in unbounded height context. This usually happens when a Fill row is used inside a scrollable"
+    _, BoundedHeight(height) -> height
+    // fills aren't used with unbounded height
+    False, UnboundedHeight -> 0
+  }
+
+  let fill_count =
+    list.count(heights, fn(size) {
+      case size {
+        Fill -> True
+        _ -> False
+      }
+    })
+
+  let cells_used =
+    heights
+    |> list.map(fn(size) {
+      case size {
+        Fill -> 0
+        Cells(cells) -> cells
+        Percent(percent) -> height * percent / 100
+      }
+    })
+    |> int.sum
+
+  let fill_size = case fill_count {
+    0 -> 0
+    n -> { height - cells_used } / n
+  }
+
+  list.map(heights, fn(size) {
+    case size {
+      Cells(cells) -> cells
+      Percent(percent) -> height * percent / 100
+      Fill -> fill_size
     }
   })
 }

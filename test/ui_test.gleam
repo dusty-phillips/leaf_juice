@@ -602,8 +602,8 @@ pub fn draw_vertical_split_test() {
 pub fn draw_grid_test() {
   assert ui.draw(
       ui.Grid(
-        [ui.Percent(20), ui.Auto, ui.Percent(10)],
-        [ui.Cells(2), ui.Auto],
+        [ui.Percent(20), ui.Fill, ui.Percent(10)],
+        [ui.Cells(2), ui.Fill],
         [
           ui.GridCell(ui.Text("1"), #(0, 0), #(0, 2)),
           ui.GridCell(ui.Text("2"), #(1, 1), #(0, 1)),
