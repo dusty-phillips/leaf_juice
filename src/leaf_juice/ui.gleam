@@ -274,7 +274,10 @@ fn draw_scrollable_text(
   }
 
   let scrollbar_position =
-    int.min(height + 1, scroll_position * height / line_count + context.top)
+    int.min(
+      context.top + height,
+      scroll_position * height / line_count + context.top,
+    )
 
   DrawResponse(
     [
@@ -310,6 +313,7 @@ fn draw_scrollbar(
   height: Int,
   scroll_position: Int,
 ) -> List(command.Command) {
+  echo scroll_position
   [
     int.range(top, top + height, [], fn(acc, row) {
       [
@@ -669,13 +673,38 @@ fn draw_scrollable(
       Context(
         ..context,
         top: context.top - scroll_position,
+        width: context.width - 2,
         height: UnboundedHeight,
       ),
       children,
     )
 
+  let scrollbar_position =
+    int.min(
+      context.top + height + 1,
+      scroll_position * height / stack_response.height + context.top,
+    )
+
+  echo #(
+    scrollbar_position,
+    scroll_position,
+    stack_response.height,
+    height,
+    context.top,
+    context.left + context.width - 1,
+  )
+
   let commands =
-    clip_commands(stack_response.commands, context.top, context.top + height)
+    [
+      clip_commands(stack_response.commands, context.top, context.top + height),
+      echo draw_scrollbar(
+        context.left + context.width - 1,
+        context.top,
+        height,
+        scrollbar_position,
+      ),
+    ]
+    |> list.flatten
 
   DrawResponse(..stack_response, commands:)
 }
