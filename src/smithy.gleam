@@ -61,7 +61,7 @@ type Msg {
 }
 
 fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
-  let #(width, height) = terminal.window_size()
+  let assert Ok(#(width, height)) = terminal.window_size()
   #(
     Model(
       last_key: "None",

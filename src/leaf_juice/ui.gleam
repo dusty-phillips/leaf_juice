@@ -324,13 +324,18 @@ fn draw_button(
         command.SetForegroundAndBackgroundColors(bg:, fg: style.Black),
       ],
 
-      list.range(context.top, context.top + rows_above)
-        |> list.flat_map(fn(row) {
+      int.range(
+        context.top + rows_above,
+        context.top - 1,
+        [],
+        fn(accumulator, row) {
           [
             command.MoveTo(context.left, row),
             " " |> string.repeat(context.width) |> command.Print,
+            ..accumulator
           ]
-        }),
+        },
+      ),
 
       [
         command.MoveTo(context.left, context.top + rows_above + 1),
@@ -342,13 +347,18 @@ fn draw_button(
         )),
       ],
 
-      list.range(context.top + rows_above + 2, context.top + height - 1)
-        |> list.flat_map(fn(row) {
+      int.range(
+        context.top + height - 1,
+        context.top + rows_above + 1,
+        [],
+        fn(accumulator, row) {
           [
             command.MoveTo(context.left, row),
             " " |> string.repeat(context.width) |> command.Print,
+            ..accumulator
           ]
-        }),
+        },
+      ),
 
       [command.ResetColor],
     ]
@@ -399,15 +409,17 @@ fn draw_text_input(
         command.Print("┘"),
       ],
 
-      list.range(context.top + 1, context.top + height - 2)
-        |> list.map(fn(row) {
+      int.range(context.top + height - 2, context.top, [], fn(accumulator, row) {
+        [
           [
             command.MoveTo(context.left, row),
             command.Print("│"),
             command.MoveTo(int.max(0, context.left + context.width - 1), row),
             command.Print("│"),
-          ]
-        })
+          ],
+          ..accumulator
+        ]
+      })
         |> list.flatten,
 
       [
@@ -470,15 +482,22 @@ fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
         command.Print("╯"),
       ],
 
-      list.range(context.top + 1, context.top + child_height)
-        |> list.map(fn(row) {
+      int.range(
+        context.top + child_height,
+        context.top,
+        [],
+        fn(accumulator, row) {
           [
-            command.MoveTo(context.left, row),
-            command.Print("│"),
-            command.MoveTo(int.max(0, context.left + context.width - 1), row),
-            command.Print("│"),
+            [
+              command.MoveTo(context.left, row),
+              command.Print("│"),
+              command.MoveTo(int.max(0, context.left + context.width - 1), row),
+              command.Print("│"),
+            ],
+            ..accumulator
           ]
-        })
+        },
+      )
         |> list.flatten,
       child_commands,
     ]),

@@ -45,8 +45,9 @@ pub fn start(
   actor.new_with_initialiser(1000, fn(actor_subject) {
     let #(model, effects) = app.init()
 
+    terminal.enter_raw()
+
     stdout.execute([
-      command.EnterRaw,
       command.EnterAlternateScreen,
       command.Clear(terminal.All),
       command.HideCursor,
@@ -168,8 +169,9 @@ fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) 
 }
 
 fn draw(app_state: AppState(model, msg)) -> AppState(model, msg) {
+  let assert Ok(window_size) = terminal.window_size()
   let #(commands, mouse_callbacks) =
-    ui.draw(app_state.app.view(app_state.model), terminal.window_size())
+    ui.draw(app_state.app.view(app_state.model), window_size)
 
   stdout.Queue([command.Clear(terminal.All)])
   |> stdout.queue(commands)
