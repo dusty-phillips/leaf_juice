@@ -1,7 +1,9 @@
 import etch/event
+import etch/style
 import etch/terminal
 import gleam/erlang/process
 import gleam/int
+import gleam/option
 import leaf_juice
 import leaf_juice/ui
 
@@ -242,12 +244,18 @@ fn view(model: Model) -> ui.Node(Msg) {
       ui.GridCell(
         ui.Scrollable(
           [
-            ui.Text("1\n2"),
-            ui.Text("3\n4"),
-            ui.OutlinedBox(ui.Text("5\n6\n7")),
-            ui.Text("eight nine ten eleven"),
-            ui.Text("12\n13\n14"),
-            ui.Text("15\n16\n17"),
+            ui.Text("1\n2", focused_style(model.focused, FocusScrollable)),
+            ui.Text("3\n4", focused_style(model.focused, FocusScrollable)),
+            ui.OutlinedBox(ui.Text(
+              "5\n6\n7",
+              focused_style(model.focused, FocusScrollable),
+            )),
+            ui.Text(
+              "eight nine ten eleven",
+              focused_style(model.focused, FocusScrollable),
+            ),
+            ui.Text("12\n13\n14", focused_style(model.focused, FocusScrollable)),
+            ui.Text("15\n16\n17", focused_style(model.focused, FocusScrollable)),
           ],
           model.scrollable_position,
         ),
@@ -264,7 +272,7 @@ fn view(model: Model) -> ui.Node(Msg) {
         columns: #(1, 1),
       ),
       ui.GridCell(
-        ui.OutlinedBox(ui.Text(model.last_button)),
+        ui.OutlinedBox(ui.Text(model.last_button, option.None)),
         rows: #(1, 1),
         columns: #(1, 1),
       ),
@@ -279,4 +287,11 @@ fn view(model: Model) -> ui.Node(Msg) {
       ),
     ]),
   )
+}
+
+fn focused_style(focused: Focus, target: Focus) -> option.Option(style.Style) {
+  case focused == target {
+    True -> option.Some(style.Style(style.Default, style.Default, []))
+    False -> option.None
+  }
 }
