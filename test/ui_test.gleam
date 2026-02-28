@@ -110,31 +110,60 @@ pub fn draw_empty_test() {
 }
 
 pub fn draw_text_test() {
-  assert ui.draw(ui.Text("Hello"), #(20, 80))
-    == #([command.HideCursor, command.MoveTo(0, 0), command.Print("Hello")], [])
-
-  assert ui.draw(ui.Text("Hello World"), #(8, 8))
+  assert ui.draw(ui.Text("Hello", style.default_style()), #(20, 80))
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
+        command.MoveTo(0, 0),
+        command.Print("Hello"),
+
+        command.ResetStyle,
+      ],
+      [],
+    )
+
+  assert ui.draw(ui.Text("Hello World", style.default_style()), #(8, 8))
+    == #(
+      [
+        command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("Hello"),
         command.MoveTo(0, 1),
         command.Print("World"),
+        command.ResetStyle,
+      ],
+      [],
+    )
+
+  assert ui.draw(
+      ui.Text("Hello World", style.Style(style.Blue, style.BrightBlue, [])),
+      #(8, 8),
+    )
+    == #(
+      [
+        command.HideCursor,
+        command.SetStyle(style.Style(style.Blue, style.BrightBlue, [])),
+        command.MoveTo(0, 0),
+        command.Print("Hello"),
+        command.MoveTo(0, 1),
+        command.Print("World"),
+        command.ResetStyle,
       ],
       [],
     )
 }
 
 pub fn draw_scrollable_text_test() {
-  assert ui.draw(ui.ScrollableText("Foobar FizzBuzz Hello World", 2, False), #(
-      8,
-      8,
-    ))
+  assert ui.draw(
+      ui.ScrollableText("Foobar FizzBuzz Hello World", 2, style.default_style()),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
-        command.SetForegroundColor(style.Grey),
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("Hello"),
         command.MoveTo(0, 1),
@@ -157,19 +186,19 @@ pub fn draw_scrollable_text_test() {
         command.Print("|"),
         command.MoveTo(7, 4),
         command.Print("▓"),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [],
     )
 
-  assert ui.draw(ui.ScrollableText("Foobar FizzBuzz Hello World", 2, True), #(
-      8,
-      8,
-    ))
+  assert ui.draw(
+      ui.ScrollableText("Foobar FizzBuzz Hello World", 2, style.default_style()),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
-        command.SetForegroundColor(style.White),
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("Hello"),
         command.MoveTo(0, 1),
@@ -192,7 +221,7 @@ pub fn draw_scrollable_text_test() {
         command.Print("|"),
         command.MoveTo(7, 4),
         command.Print("▓"),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [],
     )
@@ -200,12 +229,15 @@ pub fn draw_scrollable_text_test() {
 
 pub fn draw_button_test() {
   let handler = fn() { Nil }
-  assert ui.draw(ui.Button("Hello", False, handler), #(10, 10))
+  assert ui.draw(
+      ui.Button("Hello", style.Style(style.Black, style.Green, []), handler),
+      #(10, 10),
+    )
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundAndBackgroundColors(style.Black, style.Green),
+        command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("          "),
         command.MoveTo(0, 1),
@@ -228,17 +260,20 @@ pub fn draw_button_test() {
         command.Print("          "),
         command.MoveTo(0, 9),
         command.Print("          "),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [ui.MouseClickCallback(0, 0, 10, 10, handler)],
     )
 
-  assert ui.draw(ui.Button("Hello", False, handler), #(11, 11))
+  assert ui.draw(
+      ui.Button("Hello", style.Style(style.Black, style.Green, []), handler),
+      #(11, 11),
+    )
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundAndBackgroundColors(style.Black, style.Green),
+        command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("           "),
         command.MoveTo(0, 1),
@@ -263,50 +298,24 @@ pub fn draw_button_test() {
         command.Print("           "),
         command.MoveTo(0, 10),
         command.Print("           "),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [ui.MouseClickCallback(0, 0, 11, 11, handler)],
     )
 
-  assert ui.draw(ui.Button("Hello", True, handler), #(10, 10))
-    == #(
-      [
-        command.HideCursor,
-        command.MoveTo(0, 0),
-        command.SetForegroundAndBackgroundColors(style.Black, style.BrightGreen),
-        command.MoveTo(0, 0),
-        command.Print("          "),
-        command.MoveTo(0, 1),
-        command.Print("          "),
-        command.MoveTo(0, 2),
-        command.Print("          "),
-        command.MoveTo(0, 3),
-        command.Print("          "),
-        command.MoveTo(0, 4),
-        command.Print("          "),
-        command.MoveTo(0, 5),
-        command.Print("  "),
-        command.Print("Hello"),
-        command.Print("   "),
-        command.MoveTo(0, 6),
-        command.Print("          "),
-        command.MoveTo(0, 7),
-        command.Print("          "),
-        command.MoveTo(0, 8),
-        command.Print("          "),
-        command.MoveTo(0, 9),
-        command.Print("          "),
-        command.ResetColor,
-      ],
-      [ui.MouseClickCallback(0, 0, 10, 10, handler)],
+  assert ui.draw(
+      ui.Button(
+        "Hello World",
+        style.Style(style.Black, style.Green, []),
+        handler,
+      ),
+      #(10, 10),
     )
-
-  assert ui.draw(ui.Button("Hello World", True, handler), #(10, 10))
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundAndBackgroundColors(style.Black, style.BrightGreen),
+        command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("          "),
         command.MoveTo(0, 1),
@@ -329,7 +338,7 @@ pub fn draw_button_test() {
         command.Print("          "),
         command.MoveTo(0, 9),
         command.Print("          "),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [ui.MouseClickCallback(0, 0, 10, 10, handler)],
     )
@@ -338,12 +347,20 @@ pub fn draw_button_test() {
 pub fn draw_text_input_test() {
   let handler = fn() { Nil }
 
-  assert ui.draw(ui.TextInput(ui.TextInputModel("", 0), False, handler), #(8, 8))
+  assert ui.draw(
+      ui.TextInput(
+        ui.TextInputModel("", 0),
+        style.Style(style.Black, style.Blue, []),
+        False,
+        handler,
+      ),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundColor(style.Blue),
+        command.SetStyle(style.Style(style.Black, style.Blue, [])),
         command.Print("┌"),
         command.Print("──────"),
         command.Print("┐"),
@@ -377,17 +394,25 @@ pub fn draw_text_input_test() {
         command.Print("│"),
         command.MoveTo(1, 2),
         command.Print(""),
-        command.ResetColor,
+        command.ResetStyle,
       ],
       [ui.MouseClickCallback(0, 0, 8, 8, handler)],
     )
 
-  assert ui.draw(ui.TextInput(ui.TextInputModel("", 0), True, handler), #(8, 8))
+  assert ui.draw(
+      ui.TextInput(
+        ui.TextInputModel("", 0),
+        style.Style(style.Black, style.BrightBlue, []),
+        True,
+        handler,
+      ),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundColor(style.BrightBlue),
+        command.SetStyle(style.Style(style.Black, style.BrightBlue, [])),
         command.Print("┌"),
         command.Print("──────"),
         command.Print("┐"),
@@ -421,22 +446,27 @@ pub fn draw_text_input_test() {
         command.Print("│"),
         command.MoveTo(1, 2),
         command.Print(""),
-        command.ResetColor,
+        command.ResetStyle,
         command.MoveTo(1, 2),
         command.ShowCursor,
       ],
       [ui.MouseClickCallback(0, 0, 8, 8, handler)],
     )
 
-  assert ui.draw(ui.TextInput(ui.TextInputModel("hello", 3), True, handler), #(
-      8,
-      8,
-    ))
+  assert ui.draw(
+      ui.TextInput(
+        ui.TextInputModel("hello", 3),
+        style.Style(style.Black, style.BrightBlue, []),
+        True,
+        handler,
+      ),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
         command.MoveTo(0, 0),
-        command.SetForegroundColor(style.BrightBlue),
+        command.SetStyle(style.Style(style.Black, style.BrightBlue, [])),
         command.Print("┌"),
         command.Print("──────"),
         command.Print("┐"),
@@ -470,7 +500,7 @@ pub fn draw_text_input_test() {
         command.Print("│"),
         command.MoveTo(1, 2),
         command.Print("hello"),
-        command.ResetColor,
+        command.ResetStyle,
         command.MoveTo(4, 2),
         command.ShowCursor,
       ],
@@ -521,7 +551,10 @@ pub fn draw_outline_box_test() {
       [],
     )
 
-  assert ui.draw(ui.OutlinedBox(ui.Text("Hello")), #(8, 8))
+  assert ui.draw(ui.OutlinedBox(ui.Text("Hello", style.default_style())), #(
+      8,
+      8,
+    ))
     == #(
       [
         command.HideCursor,
@@ -557,8 +590,10 @@ pub fn draw_outline_box_test() {
         command.Print("│"),
         command.MoveTo(7, 6),
         command.Print("│"),
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(1, 1),
         command.Print("Hello"),
+        command.ResetStyle,
       ],
       [],
     )
@@ -566,18 +601,28 @@ pub fn draw_outline_box_test() {
 }
 
 pub fn draw_vertical_stack_test() {
-  assert ui.draw(ui.VerticalStack([ui.Text("1\n2"), ui.Text("3\n4")]), #(4, 4))
+  assert ui.draw(
+      ui.VerticalStack([
+        ui.Text("1\n2", style.default_style()),
+        ui.Text("3\n4", style.default_style()),
+      ]),
+      #(4, 4),
+    )
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("1"),
         command.MoveTo(0, 1),
         command.Print("2"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 2),
         command.Print("3"),
         command.MoveTo(0, 3),
         command.Print("4"),
+        command.ResetStyle,
       ],
       [],
     )
@@ -586,7 +631,12 @@ pub fn draw_vertical_stack_test() {
 pub fn draw_scrollable_test() {
   assert ui.draw(
       ui.Scrollable(
-        [ui.Text("1\n2"), ui.Text("3\n4"), ui.Text("5\n6"), ui.Text("7\n8")],
+        [
+          ui.Text("1\n2", style.default_style()),
+          ui.Text("3\n4", style.default_style()),
+          ui.Text("5\n6", style.default_style()),
+          ui.Text("7\n8", style.default_style()),
+        ],
         2,
       ),
       #(4, 4),
@@ -594,14 +644,19 @@ pub fn draw_scrollable_test() {
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("3"),
         command.MoveTo(0, 1),
         command.Print("4"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 2),
         command.Print("5"),
         command.MoveTo(0, 3),
         command.Print("6"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(3, 3),
         command.Print("|"),
         command.MoveTo(3, 2),
@@ -619,31 +674,47 @@ pub fn draw_scrollable_test() {
 
 pub fn draw_horizontal_split_test() {
   assert ui.draw(
-      ui.HorizontalSplit(ui.Text("One"), ui.Text("Two"), ui.Percent(50)),
+      ui.HorizontalSplit(
+        ui.Text("One", style.default_style()),
+        ui.Text("Two", style.default_style()),
+        ui.Percent(50),
+      ),
       #(8, 8),
     )
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("One"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 4),
         command.Print("Two"),
+        command.ResetStyle,
       ],
       [],
     )
 
-  assert ui.draw(ui.HorizontalSplit(ui.Text("1"), ui.Text("2"), ui.Cells(2)), #(
-      8,
-      8,
-    ))
+  assert ui.draw(
+      ui.HorizontalSplit(
+        ui.Text("1", style.default_style()),
+        ui.Text("2", style.default_style()),
+        ui.Cells(2),
+      ),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("1"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 2),
         command.Print("2"),
+        command.ResetStyle,
       ],
       [],
     )
@@ -651,31 +722,47 @@ pub fn draw_horizontal_split_test() {
 
 pub fn draw_vertical_split_test() {
   assert ui.draw(
-      ui.VerticalSplit(ui.Text("One"), ui.Text("Two"), ui.Percent(50)),
+      ui.VerticalSplit(
+        ui.Text("One", style.default_style()),
+        ui.Text("Two", style.default_style()),
+        ui.Percent(50),
+      ),
       #(8, 8),
     )
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("One"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(4, 0),
         command.Print("Two"),
+        command.ResetStyle,
       ],
       [],
     )
 
-  assert ui.draw(ui.VerticalSplit(ui.Text("1"), ui.Text("2"), ui.Cells(2)), #(
-      8,
-      8,
-    ))
+  assert ui.draw(
+      ui.VerticalSplit(
+        ui.Text("1", style.default_style()),
+        ui.Text("2", style.default_style()),
+        ui.Cells(2),
+      ),
+      #(8, 8),
+    )
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("1"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(2, 0),
         command.Print("2"),
+        command.ResetStyle,
       ],
       [],
     )
@@ -687,9 +774,9 @@ pub fn draw_grid_test() {
         [ui.Percent(20), ui.Fill, ui.Percent(10)],
         [ui.Cells(2), ui.Fill],
         [
-          ui.GridCell(ui.Text("1"), #(0, 0), #(0, 2)),
-          ui.GridCell(ui.Text("2"), #(1, 1), #(0, 1)),
-          ui.GridCell(ui.Text("3"), #(1, 1), #(2, 2)),
+          ui.GridCell(ui.Text("1", style.default_style()), #(0, 0), #(0, 2)),
+          ui.GridCell(ui.Text("2", style.default_style()), #(1, 1), #(0, 1)),
+          ui.GridCell(ui.Text("3", style.default_style()), #(1, 1), #(2, 2)),
         ],
       ),
       #(10, 10),
@@ -697,12 +784,18 @@ pub fn draw_grid_test() {
     == #(
       [
         command.HideCursor,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(10, 2),
         command.Print("3"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 2),
         command.Print("2"),
+        command.ResetStyle,
+        command.SetStyle(style.Style(style.Default, style.Default, [])),
         command.MoveTo(0, 0),
         command.Print("1"),
+        command.ResetStyle,
       ],
       [],
     )

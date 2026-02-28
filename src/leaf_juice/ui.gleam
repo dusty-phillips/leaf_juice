@@ -14,11 +14,16 @@ pub type Size {
 
 pub type Node(msg) {
   Empty
-  Text(String)
-  ScrollableText(text: String, scroll_position: Int, is_focused: Bool)
+  Text(text: String, style: style.Style)
+  ScrollableText(text: String, scroll_position: Int, style: style.Style)
 
-  Button(text: String, is_focused: Bool, on_click: fn() -> msg)
-  TextInput(model: TextInputModel, is_focused: Bool, on_click: fn() -> msg)
+  Button(text: String, style: style.Style, on_click: fn() -> msg)
+  TextInput(
+    model: TextInputModel,
+    style: style.Style,
+    is_focused: Bool,
+    on_click: fn() -> msg,
+  )
 
   OutlinedBox(child: Node(msg))
 
@@ -188,16 +193,15 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
         UnboundedHeight -> 0
       })
 
-    Text(text) -> draw_text(context, text)
+    Text(text, style) -> draw_text(context, text, style)
 
-    ScrollableText(text, scroll_position, is_focused) ->
-      draw_scrollable_text(context, text, scroll_position, is_focused)
+    ScrollableText(text, scroll_position, style) ->
+      draw_scrollable_text(context, text, scroll_position, style)
 
-    Button(text, is_focused, on_click) ->
-      draw_button(context, text, is_focused, on_click)
+    Button(text, style, on_click) -> draw_button(context, text, style, on_click)
 
-    TextInput(model, is_focused, on_click) ->
-      draw_text_input(context, model, is_focused, on_click)
+    TextInput(model, style, is_focused, on_click) ->
+      draw_text_input(context, model, style, is_focused, on_click)
 
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
@@ -216,7 +220,11 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
   }
 }
 
-fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
+fn draw_text(
+  context: Context,
+  text: String,
+  style: style.Style,
+) -> DrawResponse(msg) {
   let all_lines =
     text
     |> string.split("\n")
@@ -231,13 +239,18 @@ fn draw_text(context: Context, text: String) -> DrawResponse(msg) {
   }
 
   DrawResponse(
-    lines
-      |> list.index_map(fn(line, row) {
-        [
-          command.MoveTo(context.left, context.top + row),
-          command.Print(line),
-        ]
-      })
+    [
+      [command.SetStyle(style)],
+      lines
+        |> list.index_map(fn(line, row) {
+          [
+            command.MoveTo(context.left, context.top + row),
+            command.Print(line),
+          ]
+        })
+        |> list.flatten,
+      [command.ResetStyle],
+    ]
       |> list.flatten,
     [],
     [],
@@ -249,12 +262,8 @@ fn draw_scrollable_text(
   context: Context,
   text: String,
   scroll_position: Int,
-  is_focused: Bool,
+  style: style.Style,
 ) -> DrawResponse(msg) {
-  let fg = case is_focused {
-    False -> style.Grey
-    True -> style.White
-  }
   let all_lines =
     text
     |> str.wrap_at(context.width - 2)
@@ -281,7 +290,8 @@ fn draw_scrollable_text(
 
   DrawResponse(
     [
-      [command.SetForegroundColor(fg)],
+      [command.SetStyle(style)],
+
       displayed_lines
         |> list.index_map(fn(line, row) {
           [
@@ -290,15 +300,15 @@ fn draw_scrollable_text(
           ]
         })
         |> list.flatten,
+
       draw_scrollbar(
         context.left + context.width - 1,
         context.top,
         height,
         scrollbar_position,
       ),
-      [
-        command.ResetColor,
-      ],
+
+      [command.ResetStyle],
     ]
       |> list.flatten,
     [],
@@ -313,7 +323,6 @@ fn draw_scrollbar(
   height: Int,
   scroll_position: Int,
 ) -> List(command.Command) {
-  echo scroll_position
   [
     int.range(top, top + height, [], fn(acc, row) {
       [
@@ -336,7 +345,7 @@ fn draw_scrollbar(
 fn draw_button(
   context: Context,
   text: String,
-  is_focused: Bool,
+  style: style.Style,
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
   let height = case context.height {
@@ -349,16 +358,11 @@ fn draw_button(
   let columns_before = { context.width - string.length(text) } / 2
   let text = string.slice(text, 0, context.width)
 
-  let bg = case is_focused {
-    False -> style.Green
-    True -> style.BrightGreen
-  }
-
   DrawResponse(
     [
       [
         command.MoveTo(context.left, context.top),
-        command.SetForegroundAndBackgroundColors(bg:, fg: style.Black),
+        command.SetStyle(style),
       ],
 
       int.range(
@@ -397,7 +401,7 @@ fn draw_button(
         },
       ),
 
-      [command.ResetColor],
+      [command.ResetStyle],
     ]
       |> list.flatten,
     [
@@ -417,6 +421,7 @@ fn draw_button(
 fn draw_text_input(
   context: Context,
   model: TextInputModel,
+  style: style.Style,
   is_focused: Bool,
   on_click: fn() -> msg,
 ) -> DrawResponse(msg) {
@@ -427,16 +432,12 @@ fn draw_text_input(
   }
 
   let rows_above = { height - 3 } / 2
-  let fg = case is_focused {
-    False -> style.Blue
-    True -> style.BrightBlue
-  }
 
   DrawResponse(
     list.flatten([
       [
         command.MoveTo(context.left, context.top),
-        command.SetForegroundColor(fg),
+        command.SetStyle(style),
         command.Print("┌"),
         command.Print(string.repeat("─", context.width - 2)),
         command.Print("┐"),
@@ -462,7 +463,7 @@ fn draw_text_input(
       [
         command.MoveTo(context.left + 1, context.top + rows_above),
         command.Print(model.text),
-        command.ResetColor,
+        command.ResetStyle,
       ],
     ]),
     [
@@ -685,19 +686,10 @@ fn draw_scrollable(
       scroll_position * height / stack_response.height + context.top,
     )
 
-  echo #(
-    scrollbar_position,
-    scroll_position,
-    stack_response.height,
-    height,
-    context.top,
-    context.left + context.width - 1,
-  )
-
   let commands =
     [
       clip_commands(stack_response.commands, context.top, context.top + height),
-      echo draw_scrollbar(
+      draw_scrollbar(
         context.left + context.width - 1,
         context.top,
         height,

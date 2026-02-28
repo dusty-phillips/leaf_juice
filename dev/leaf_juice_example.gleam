@@ -3,7 +3,6 @@ import etch/style
 import etch/terminal
 import gleam/erlang/process
 import gleam/int
-import gleam/option
 import leaf_juice
 import leaf_juice/ui
 
@@ -225,7 +224,7 @@ fn view(model: Model) -> ui.Node(Msg) {
         ui.OutlinedBox(
           ui.Button(
             int.to_string(model.width) <> ", " <> int.to_string(model.height),
-            is_focused: model.focused == FocusOne,
+            style: button_style(model.focused, FocusOne),
             on_click: fn() { UserInvokedOne },
           ),
         ),
@@ -235,6 +234,7 @@ fn view(model: Model) -> ui.Node(Msg) {
       ui.GridCell(
         ui.TextInput(
           model.input_text,
+          text_input_style(model.focused, FocusInput),
           is_focused: model.focused == FocusInput,
           on_click: fn() { UserClickedInput },
         ),
@@ -266,20 +266,20 @@ fn view(model: Model) -> ui.Node(Msg) {
         ui.OutlinedBox(ui.ScrollableText(
           model.scrollable_text.0,
           model.scrollable_text.1,
-          is_focused: model.focused == FocusScrollableText,
+          focused_style(model.focused, FocusScrollableText),
         )),
         rows: #(0, 0),
         columns: #(1, 1),
       ),
       ui.GridCell(
-        ui.OutlinedBox(ui.Text(model.last_button, option.None)),
+        ui.OutlinedBox(ui.Text(model.last_button, style.default_style())),
         rows: #(1, 1),
         columns: #(1, 1),
       ),
       ui.GridCell(
         ui.Button(
           model.last_key,
-          is_focused: model.focused == FocusLastKey,
+          style: button_style(model.focused, FocusLastKey),
           on_click: fn() { UserInvokedLastKey },
         ),
         rows: #(2, 2),
@@ -289,9 +289,23 @@ fn view(model: Model) -> ui.Node(Msg) {
   )
 }
 
-fn focused_style(focused: Focus, target: Focus) -> option.Option(style.Style) {
+fn focused_style(focused: Focus, target: Focus) -> style.Style {
   case focused == target {
-    True -> option.Some(style.Style(style.Default, style.Default, []))
-    False -> option.None
+    True -> style.Style(style.Default, style.White, [])
+    False -> style.default_style()
+  }
+}
+
+fn button_style(focused: Focus, target: Focus) -> style.Style {
+  case focused == target {
+    True -> style.Style(style.BrightGreen, style.Black, [])
+    False -> style.Style(style.Green, style.Black, [])
+  }
+}
+
+fn text_input_style(focused: Focus, target: Focus) -> style.Style {
+  case focused == target {
+    True -> style.Style(style.Default, style.BrightBlue, [])
+    False -> style.Style(style.Default, style.Blue, [])
   }
 }
