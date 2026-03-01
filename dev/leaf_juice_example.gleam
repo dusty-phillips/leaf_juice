@@ -17,11 +17,11 @@ pub fn main() {
 
 type Model {
   Model(
-    last_key: String,
     last_button: String,
     input_text: ui.TextInputModel,
     scrollable_text: #(String, Int),
     scrollable_position: Int,
+    selected_tab: Tab,
     width: Int,
     height: Int,
     focused: Focus,
@@ -34,7 +34,7 @@ type Focus {
   FocusInput
   FocusScrollable
   FocusScrollableText
-  FocusLastKey
+  FocusTabs
 }
 
 fn next_focus(focus: Focus) -> Focus {
@@ -43,31 +43,73 @@ fn next_focus(focus: Focus) -> Focus {
     FocusOne -> FocusInput
     FocusInput -> FocusScrollable
     FocusScrollable -> FocusScrollableText
-    FocusScrollableText -> FocusLastKey
-    FocusLastKey -> FocusOne
+    FocusScrollableText -> FocusTabs
+    FocusTabs -> FocusOne
   }
 }
 
 fn prev_focus(focus: Focus) -> Focus {
   case focus {
-    FocusNone -> FocusLastKey
-    FocusOne -> FocusLastKey
+    FocusNone -> FocusTabs
+    FocusOne -> FocusTabs
     FocusInput -> FocusOne
     FocusScrollable -> FocusInput
     FocusScrollableText -> FocusScrollable
-    FocusLastKey -> FocusScrollableText
+    FocusTabs -> FocusScrollableText
   }
 }
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone | FocusInput | FocusScrollable | FocusScrollableText -> #(
+    FocusNone | FocusInput | FocusScrollable | FocusScrollableText | FocusTabs -> #(
       model,
       [],
     )
 
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
-    FocusLastKey -> #(model, [leaf_juice.Effect(fn() { UserInvokedLastKey })])
+  }
+}
+
+type Tab {
+  TabFoo
+  TabBar
+  TabWibble
+  TabWobble
+}
+
+fn tab_to_string(tab: Tab) -> String {
+  case tab {
+    TabFoo -> "Foo"
+    TabBar -> "Bar"
+    TabWibble -> "Wibble"
+    TabWobble -> "Wobble"
+  }
+}
+
+fn string_to_tab(string: String) -> Tab {
+  case string {
+    "Bar" -> TabBar
+    "Wibble" -> TabWibble
+    "Wobble" -> TabWobble
+    _ -> TabFoo
+  }
+}
+
+fn next_tab(tab: Tab) -> Tab {
+  case tab {
+    TabFoo -> TabBar
+    TabBar -> TabWibble
+    TabWibble -> TabWobble
+    TabWobble -> TabFoo
+  }
+}
+
+fn prev_tab(tab: Tab) -> Tab {
+  case tab {
+    TabFoo -> TabWobble
+    TabBar -> TabFoo
+    TabWibble -> TabBar
+    TabWobble -> TabWibble
   }
 }
 
@@ -76,13 +118,13 @@ type Msg {
   UserClickedInput
   UserInvokedOne
   UserInvokedLastKey
+  UserFocusedTab(Tab)
 }
 
 fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
   let assert Ok(#(width, height)) = terminal.window_size()
   #(
     Model(
-      last_key: "None",
       last_button: "None",
       input_text: ui.TextInputModel("", cursor_position: 0),
       scrollable_text: #(
@@ -91,6 +133,7 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
         2,
       ),
       scrollable_position: 0,
+      selected_tab: TabFoo,
       width:,
       height:,
       focused: FocusNone,
@@ -175,7 +218,20 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           [],
         )
 
-        _ -> #(Model(..model, last_key: event.to_string(key_event.code)), [])
+        FocusTabs ->
+          case key_event {
+            event.KeyEvent(code: event.Char("]"), kind: event.Release, ..) -> #(
+              Model(..model, selected_tab: next_tab(model.selected_tab)),
+              [],
+            )
+            event.KeyEvent(code: event.Char("["), kind: event.Release, ..) -> #(
+              Model(..model, selected_tab: prev_tab(model.selected_tab)),
+              [],
+            )
+            _ -> #(model, [])
+          }
+
+        _ -> #(model, [])
       }
 
     RuntimeEmittedEvent(event.Resize(width, height)) -> #(
@@ -214,6 +270,7 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     UserInvokedOne -> #(Model(..model, last_button: "One"), [])
     UserInvokedLastKey -> #(Model(..model, last_button: "LastKey"), [])
     UserClickedInput -> #(Model(..model, focused: FocusInput), [])
+    UserFocusedTab(selected_tab) -> #(Model(..model, selected_tab:), [])
   }
 }
 
@@ -277,10 +334,31 @@ fn view(model: Model) -> ui.Node(Msg) {
         columns: #(1, 1),
       ),
       ui.GridCell(
-        ui.Button(
-          model.last_key,
-          style: button_style(model.focused, FocusLastKey),
-          on_click: fn() { UserInvokedLastKey },
+        ui.OutlinedBox(
+          ui.Tabs(
+            [
+              #(
+                tab_to_string(TabFoo),
+                ui.Text("Foo", style: style.default_style()),
+              ),
+              #(
+                tab_to_string(TabBar),
+                ui.Text("Bar", style: style.default_style()),
+              ),
+              #(
+                tab_to_string(TabWibble),
+                ui.Text("Wibble", style: style.default_style()),
+              ),
+              #(
+                tab_to_string(TabWobble),
+                ui.Text("Wobble", style: style.default_style()),
+              ),
+            ],
+            tab_to_string(model.selected_tab),
+            deselected_tab_style(model.focused, FocusTabs),
+            selected_tab_style(model.focused, FocusTabs),
+            fn(what) { UserFocusedTab(string_to_tab(what)) },
+          ),
         ),
         rows: #(2, 2),
         columns: #(1, 1),
@@ -300,6 +378,20 @@ fn button_style(focused: Focus, target: Focus) -> style.Style {
   case focused == target {
     True -> style.Style(style.BrightGreen, style.Black, [])
     False -> style.Style(style.Green, style.Black, [])
+  }
+}
+
+fn deselected_tab_style(focused: Focus, target: Focus) -> style.Style {
+  case focused == target {
+    True -> style.Style(style.Black, style.BrightRed, [])
+    False -> style.Style(style.Black, style.Red, [])
+  }
+}
+
+fn selected_tab_style(focused: Focus, target: Focus) -> style.Style {
+  case focused == target {
+    True -> style.Style(style.BrightRed, style.Black, [])
+    False -> style.Style(style.Red, style.Black, [])
   }
 }
 

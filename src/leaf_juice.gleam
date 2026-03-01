@@ -142,9 +142,9 @@ fn on_mouse_up(app_state: AppState(model, msg), event: event.MouseEvent) -> Nil 
 
       list.all(
         [
-          row > top,
+          row >= top,
           row < top + height,
-          column > left,
+          column >= left,
           column < left + width,
         ],
         function.identity,

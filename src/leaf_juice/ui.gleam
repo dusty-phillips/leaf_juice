@@ -30,6 +30,13 @@ pub type Node(msg) {
   VerticalSplit(left: Node(msg), right: Node(msg), left_size: Size)
   HorizontalSplit(upper: Node(msg), lower: Node(msg), upper_size: Size)
   VerticalStack(children: List(Node(msg)))
+  Tabs(
+    tabs: List(#(String, Node(msg))),
+    selected: String,
+    selected_style: style.Style,
+    deselected_style: style.Style,
+    set_selected_tab: fn(String) -> msg,
+  )
   Scrollable(children: List(Node(msg)), scroll_position: Int)
   Grid(rows: List(Size), columns: List(Size), children: List(GridCell(msg)))
 }
@@ -213,6 +220,16 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 
     VerticalStack(children) -> draw_vertical_stack(context, children)
 
+    Tabs(tabs, selected, selected_style, deselected_style, set_selected_tab) ->
+      draw_tabs(
+        context,
+        tabs,
+        selected,
+        selected_style,
+        deselected_style,
+        set_selected_tab,
+      )
+
     Scrollable(children, scroll_position) ->
       draw_scrollable(context, children, scroll_position)
 
@@ -361,13 +378,12 @@ fn draw_button(
   DrawResponse(
     [
       [
-        command.MoveTo(context.left, context.top),
         command.SetStyle(style),
       ],
 
       int.range(
         context.top + rows_above,
-        context.top - 1,
+        context.top - int.min(1, rows_above),
         [],
         fn(accumulator, row) {
           [
@@ -379,7 +395,7 @@ fn draw_button(
       ),
 
       [
-        command.MoveTo(context.left, context.top + rows_above + 1),
+        command.MoveTo(context.left, context.top + rows_above),
         command.Print(string.repeat(" ", columns_before)),
         command.Print(text),
         command.Print(string.repeat(
@@ -390,7 +406,7 @@ fn draw_button(
 
       int.range(
         context.top + height - 1,
-        context.top + rows_above + 1,
+        context.top + rows_above,
         [],
         fn(accumulator, row) {
           [
@@ -657,6 +673,112 @@ fn draw_vertical_stack(
       |> list.flatten,
     height: responses |> list.map(fn(response) { response.height }) |> int.sum,
   )
+}
+
+fn draw_tabs(
+  context: Context,
+  children: List(#(String, Node(msg))),
+  selected: String,
+  selected_style: style.Style,
+  deselected_style: style.Style,
+  set_selected: fn(String) -> msg,
+) -> DrawResponse(msg) {
+  let #(response, _tab_width_used) =
+    list.fold(
+      children,
+      #(DrawResponse([], [], [], 1), 0),
+      fn(accumulator, child) {
+        let #(response_so_far, width_used) = accumulator
+        let #(name, node) = child
+
+        let name_length = string.length(name)
+
+        case name == selected {
+          False -> {
+            let button_response =
+              draw_button(
+                Context(
+                  context.left + width_used,
+                  context.top,
+                  name_length,
+                  BoundedHeight(1),
+                ),
+                name,
+                selected_style,
+                fn() { set_selected(name) },
+              )
+            #(
+              DrawResponse(
+                list.flatten([
+                  response_so_far.commands,
+                  button_response.commands,
+                ]),
+                list.flatten([
+                  response_so_far.callbacks,
+                  button_response.callbacks,
+                ]),
+                list.flatten([
+                  response_so_far.after_commands,
+                  button_response.after_commands,
+                ]),
+                int.max(button_response.height + 1, response_so_far.height),
+              ),
+              width_used + 1 + name_length,
+            )
+          }
+          True -> {
+            let button_response =
+              draw_button(
+                Context(
+                  context.left + width_used,
+                  context.top,
+                  name_length,
+                  BoundedHeight(1),
+                ),
+                name,
+                deselected_style,
+                fn() { set_selected(name) },
+              )
+            let node_response =
+              draw_in_context(
+                node,
+                Context(
+                  context.left,
+                  context.top + 1,
+                  context.width,
+                  case context.height {
+                    UnboundedHeight -> UnboundedHeight
+                    BoundedHeight(height) -> BoundedHeight(height - 1)
+                  },
+                ),
+              )
+            #(
+              DrawResponse(
+                list.flatten([
+                  response_so_far.commands,
+                  button_response.commands,
+                  node_response.commands,
+                ]),
+                list.flatten([
+                  response_so_far.callbacks,
+                  button_response.callbacks,
+                  node_response.callbacks,
+                ]),
+                list.flatten([
+                  response_so_far.after_commands,
+                  button_response.after_commands,
+                  node_response.after_commands,
+                ]),
+                int.max(button_response.height + 1, response_so_far.height),
+              ),
+              width_used + 1 + name_length,
+            )
+          }
+        }
+      },
+    )
+
+  response
 }
 
 fn draw_scrollable(

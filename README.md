@@ -23,9 +23,10 @@ Look at the example in dev/leaf_juice_example.gleam to see what works
 - [x] Single line input
 - [x] Button
 - [x] Basic outline box
-- [ ] styling with Etch styles (in progress)
-- [ ] Tabbed Layout
+- [x] styling with Etch styles
+- [x] Tabbed Layout
 - [ ] Multi-line text areas
+- [ ] List
 
 ## Focus is NOT PLANNED
 
