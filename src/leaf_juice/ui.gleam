@@ -84,8 +84,7 @@ pub fn update_text_input(
           )
         }
 
-        event.Char("\u{007F}") -> {
-          // Backspace isn't handled right by etch
+        event.Backspace -> {
           let before = string.slice(model.text, 0, model.cursor_position - 1)
           let after =
             string.slice(
