@@ -1,6 +1,7 @@
 import etch/command
 import etch/event
 import etch/style
+import gleam/list
 import leaf_juice/ui
 
 fn make_key_event(code: event.KeyCode) -> event.KeyEvent {
@@ -236,7 +237,6 @@ pub fn draw_button_test() {
     == #(
       [
         command.HideCursor,
-        command.MoveTo(0, 0),
         command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("          "),
@@ -248,10 +248,12 @@ pub fn draw_button_test() {
         command.Print("          "),
         command.MoveTo(0, 4),
         command.Print("          "),
-        command.MoveTo(0, 5),
+        command.MoveTo(0, 4),
         command.Print("  "),
         command.Print("Hello"),
         command.Print("   "),
+        command.MoveTo(0, 5),
+        command.Print("          "),
         command.MoveTo(0, 6),
         command.Print("          "),
         command.MoveTo(0, 7),
@@ -272,7 +274,6 @@ pub fn draw_button_test() {
     == #(
       [
         command.HideCursor,
-        command.MoveTo(0, 0),
         command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("           "),
@@ -286,10 +287,12 @@ pub fn draw_button_test() {
         command.Print("           "),
         command.MoveTo(0, 5),
         command.Print("           "),
-        command.MoveTo(0, 6),
+        command.MoveTo(0, 5),
         command.Print("   "),
         command.Print("Hello"),
         command.Print("   "),
+        command.MoveTo(0, 6),
+        command.Print("           "),
         command.MoveTo(0, 7),
         command.Print("           "),
         command.MoveTo(0, 8),
@@ -314,7 +317,6 @@ pub fn draw_button_test() {
     == #(
       [
         command.HideCursor,
-        command.MoveTo(0, 0),
         command.SetStyle(style.Style(style.Black, style.Green, [])),
         command.MoveTo(0, 0),
         command.Print("          "),
@@ -326,10 +328,12 @@ pub fn draw_button_test() {
         command.Print("          "),
         command.MoveTo(0, 4),
         command.Print("          "),
-        command.MoveTo(0, 5),
+        command.MoveTo(0, 4),
         command.Print(""),
         command.Print("Hello Worl"),
         command.Print(""),
+        command.MoveTo(0, 5),
+        command.Print("          "),
         command.MoveTo(0, 6),
         command.Print("          "),
         command.MoveTo(0, 7),
@@ -800,4 +804,49 @@ pub fn draw_grid_test() {
       [],
     )
   // TODO: There are a lot of edge cases in a grid
+}
+
+pub fn draw_tabs_test() {
+  let set_selected_tab = fn(_) { Nil }
+
+  let response =
+    ui.draw(
+      ui.Tabs(
+        [
+          #("One", ui.Text("one", style.default_style())),
+          #("Two", ui.Text("two", style.default_style())),
+        ],
+        "Two",
+        style.Style(style.Black, style.Red, []),
+        style.Style(style.Red, style.Black, []),
+        set_selected_tab,
+      ),
+      #(8, 8),
+    )
+
+  assert response.0
+    == [
+      command.HideCursor,
+
+      command.SetStyle(style.Style(style.Black, style.Red, [])),
+      command.MoveTo(0, 0),
+      command.Print(""),
+      command.Print("One"),
+      command.Print(""),
+      command.ResetStyle,
+
+      command.SetStyle(style.Style(style.Red, style.Black, [])),
+      command.MoveTo(4, 0),
+      command.Print(""),
+      command.Print("Two"),
+      command.Print(""),
+      command.ResetStyle,
+
+      command.SetStyle(style.Style(style.Default, style.Default, [])),
+      command.MoveTo(0, 1),
+      command.Print("two"),
+      command.ResetStyle,
+    ]
+
+  assert response.1 |> list.length == 2
 }

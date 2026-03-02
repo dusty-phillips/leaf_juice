@@ -12,7 +12,7 @@ gleam test  # Run the tests
 
 Look at the example in dev/leaf_juice_example.gleam to see what works
 
-## Current and planned Features
+## Current and Planned Features
 
 - [x] Text
 - [x] Split Layouts
@@ -25,7 +25,7 @@ Look at the example in dev/leaf_juice_example.gleam to see what works
 - [x] Basic outline box
 - [x] styling with Etch styles
 - [x] Tabbed Layout
-- [ ] Multi-line text areas
+- [ ] Multi-line text input
 - [ ] List
 
 ## Focus is NOT PLANNED
