@@ -19,6 +19,7 @@ type Model {
   Model(
     last_button: String,
     input_text: ui.TextInputModel,
+    area_text: ui.TextAreaModel,
     scrollable_text: #(String, Int),
     scrollable_position: Int,
     selected_tab: Tab,
@@ -116,8 +117,8 @@ fn prev_tab(tab: Tab) -> Tab {
 type Msg {
   RuntimeEmittedEvent(event.Event)
   UserClickedInput
+  UserClickedTextArea
   UserInvokedOne
-  UserInvokedLastKey
   UserFocusedTab(Tab)
 }
 
@@ -127,6 +128,11 @@ fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
     Model(
       last_button: "None",
       input_text: ui.TextInputModel("", cursor_position: 0),
+      area_text: ui.TextAreaModel(
+        "Multiple\nLines of text\nInput",
+        row: 0,
+        column: 0,
+      ),
       scrollable_text: #(
         " is the number of columns and rows in this the world of text that we are testing out the wrapping on right now just to see if it works or not or whatever, if it wraps. And also testing the total number of lines get truncated to fit in the context space, just truncation sorry, not gonna add anything else until I need it but I do want multi-line text, y'know.
               I guess I also want multi-line components, but that's a separate concern for later for now I just want lots of text right here for me to test with.",
@@ -166,11 +172,19 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     ))) -> #(Model(..model, focused: FocusNone), [])
 
     // Enter invokes action
-    RuntimeEmittedEvent(event.Key(event.KeyEvent(
-      code: event.Enter,
-      kind: event.Release,
-      ..,
-    ))) -> confirm_focused(model)
+    RuntimeEmittedEvent(event.Key(
+      event.KeyEvent(code: event.Enter, kind: event.Release, ..) as key_event,
+    )) ->
+      case model.focused {
+        FocusTabs -> #(
+          Model(
+            ..model,
+            area_text: ui.update_text_area(model.area_text, key_event),
+          ),
+          [],
+        )
+        _ -> confirm_focused(model)
+      }
 
     RuntimeEmittedEvent(event.Key(
       event.KeyEvent(code: event.Char("q"), kind: event.Release, ..) as key_event,
@@ -180,6 +194,13 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
           Model(
             ..model,
             input_text: ui.update_text_input(model.input_text, key_event),
+          ),
+          [],
+        )
+        FocusTabs -> #(
+          Model(
+            ..model,
+            area_text: ui.update_text_area(model.area_text, key_event),
           ),
           [],
         )
@@ -228,7 +249,17 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
               Model(..model, selected_tab: prev_tab(model.selected_tab)),
               [],
             )
-            _ -> #(model, [])
+            _ ->
+              case model.selected_tab {
+                TabFoo -> #(
+                  Model(
+                    ..model,
+                    area_text: ui.update_text_area(model.area_text, key_event),
+                  ),
+                  [],
+                )
+                _ -> #(model, [])
+              }
           }
 
         _ -> #(model, [])
@@ -268,8 +299,11 @@ fn update(model: Model, msg: Msg) -> #(Model, List(leaf_juice.Effect(Msg))) {
     | RuntimeEmittedEvent(event.FocusLost(..)) -> #(model, [])
 
     UserInvokedOne -> #(Model(..model, last_button: "One"), [])
-    UserInvokedLastKey -> #(Model(..model, last_button: "LastKey"), [])
     UserClickedInput -> #(Model(..model, focused: FocusInput), [])
+    UserClickedTextArea -> #(
+      Model(..model, focused: FocusTabs, selected_tab: TabFoo),
+      [],
+    )
     UserFocusedTab(selected_tab) -> #(Model(..model, selected_tab:), [])
   }
 }
@@ -339,7 +373,12 @@ fn view(model: Model) -> ui.Node(Msg) {
             [
               #(
                 tab_to_string(TabFoo),
-                ui.Text("Foo", style: style.default_style()),
+                ui.TextArea(
+                  model.area_text,
+                  text_input_style(model.focused, FocusTabs),
+                  model.focused == FocusTabs && model.selected_tab == TabFoo,
+                  fn() { UserClickedTextArea },
+                ),
               ),
               #(
                 tab_to_string(TabBar),

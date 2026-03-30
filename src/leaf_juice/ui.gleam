@@ -3,6 +3,7 @@ import etch/event
 import etch/style
 import gleam/int
 import gleam/list
+import gleam/result
 import gleam/string
 import str
 
@@ -20,6 +21,12 @@ pub type Node(msg) {
   Button(text: String, style: style.Style, on_click: fn() -> msg)
   TextInput(
     model: TextInputModel,
+    style: style.Style,
+    is_focused: Bool,
+    on_click: fn() -> msg,
+  )
+  TextArea(
+    model: TextAreaModel,
     style: style.Style,
     is_focused: Bool,
     on_click: fn() -> msg,
@@ -43,6 +50,10 @@ pub type Node(msg) {
 
 pub type TextInputModel {
   TextInputModel(text: String, cursor_position: Int)
+}
+
+pub type TextAreaModel {
+  TextAreaModel(text: String, row: Int, column: Int)
 }
 
 pub fn update_text_input(
@@ -115,6 +126,193 @@ pub fn update_text_input(
       }
     _ -> model
   }
+}
+
+pub fn update_text_area(
+  model: TextAreaModel,
+  key_event: event.KeyEvent,
+) -> TextAreaModel {
+  case key_event.kind {
+    event.Release -> {
+      let lines = model.text |> string.split("\n")
+
+      case key_event.code {
+        event.LeftArrow -> {
+          case model.column == 0, model.row == 0 {
+            True, True -> model
+            True, False -> {
+              let row = int.max(model.row - 1, 0)
+              let row_length = line_length(lines, row)
+              TextAreaModel(..model, column: row_length - 1, row: row)
+            }
+            False, _ ->
+              TextAreaModel(..model, column: int.max(model.column - 1, 0))
+          }
+        }
+
+        event.RightArrow -> {
+          let lines_count = list.length(lines)
+          let row_length = line_length(lines, model.row)
+          case model.column == row_length - 1, model.row == lines_count - 1 {
+            True, True -> model
+            True, False ->
+              TextAreaModel(
+                ..model,
+                row: int.min(model.row + 1, lines_count - 1),
+                column: 0,
+              )
+            False, _ ->
+              TextAreaModel(
+                ..model,
+                column: int.min(model.column + 1, row_length - 1),
+              )
+          }
+        }
+
+        event.DownArrow -> {
+          let row = int.min(model.row + 1, list.length(lines) - 1)
+          let row_length = line_length(lines, row)
+
+          TextAreaModel(
+            ..model,
+            row: row,
+            column: int.min(row_length - 1, model.column),
+          )
+        }
+
+        event.UpArrow -> {
+          let row = int.max(model.row - 1, 0)
+          let row_length = line_length(lines, row)
+          TextAreaModel(
+            ..model,
+            row: row,
+            column: int.min(row_length - 1, model.column),
+          )
+        }
+
+        event.Backspace -> {
+          case model.column == 0, model.row == 0 {
+            True, True -> model
+            True, False -> {
+              let #(lines_before, lines_after) =
+                list.split(lines, model.row - 1)
+              let assert [merge_into, merge, ..rest] = lines_after
+              TextAreaModel(
+                text: [lines_before, [merge_into <> merge], rest]
+                  |> list.flatten
+                  |> string.join("\n"),
+                row: model.row - 1,
+                column: string.length(merge_into),
+              )
+            }
+            False, _ -> {
+              let #(lines_before, rest) = list.split(lines, model.row)
+              let assert [line, ..lines_after] = rest
+
+              let before = string.slice(line, 0, model.column - 1)
+              let after =
+                string.slice(
+                  line,
+                  model.column,
+                  string.length(line) - model.column,
+                )
+
+              TextAreaModel(
+                ..model,
+                text: [lines_before, [before <> after], lines_after]
+                  |> list.flatten
+                  |> string.join("\n"),
+                column: model.column - 1,
+              )
+            }
+          }
+        }
+
+        event.Delete -> {
+          let lines_count = list.length(lines)
+          let row_length = line_length(lines, model.row)
+          case model.column == row_length - 1, model.row == lines_count - 1 {
+            True, True -> model
+            _, _ -> {
+              let #(lines_before, rest) = list.split(lines, model.row)
+              let assert [line, ..lines_after] = rest
+
+              let before = string.slice(line, 0, model.column)
+              let after =
+                string.slice(
+                  line,
+                  model.column + 1,
+                  string.length(line) - model.column,
+                )
+
+              TextAreaModel(
+                ..model,
+                text: [lines_before, [before <> after], lines_after]
+                  |> list.flatten
+                  |> string.join("\n"),
+                column: int.min(model.column, string.length(line) - 2),
+              )
+            }
+          }
+        }
+
+        event.Enter -> {
+          let #(lines_before, rest) = list.split(lines, model.row)
+          let assert [line, ..lines_after] = rest
+
+          let before = string.slice(line, 0, model.column)
+          let after =
+            string.slice(
+              line,
+              model.column,
+              string.length(model.text) - model.column - 1,
+            )
+
+          TextAreaModel(
+            text: [lines_before, [before], [after], lines_after]
+              |> list.flatten
+              |> string.join("\n"),
+            column: 0,
+            row: model.row + 1,
+          )
+        }
+
+        event.Char(character) -> {
+          let #(lines_before, lines_after) = list.split(lines, model.row)
+          let line = list.first(lines_after) |> result.unwrap("")
+          let lines_after = lines_after |> list.rest |> result.unwrap([])
+
+          let before = string.slice(line, 0, model.column)
+          let after =
+            string.slice(
+              line,
+              model.column,
+              string.length(model.text) - model.column,
+            )
+
+          TextAreaModel(
+            ..model,
+            text: [lines_before, [before <> character <> after], lines_after]
+              |> list.flatten
+              |> string.join("\n"),
+            column: model.column + 1,
+          )
+        }
+
+        _ -> model
+      }
+    }
+    _ -> model
+  }
+}
+
+fn line_length(lines: List(String), row_index: Int) -> Int {
+  // TODO: optimize by changing the data model
+  lines
+  |> list.drop(row_index)
+  |> list.first
+  |> result.unwrap("")
+  |> string.length
 }
 
 pub fn update_scrollable(scroll_position: Int, event: event.Event) -> Int {
@@ -208,6 +406,9 @@ fn draw_in_context(node: Node(msg), context: Context) -> DrawResponse(msg) {
 
     TextInput(model, style, is_focused, on_click) ->
       draw_text_input(context, model, style, is_focused, on_click)
+
+    TextArea(model, style, is_focused, on_click) ->
+      draw_text_area(context, model, style, is_focused, on_click)
 
     OutlinedBox(child) -> draw_outlined_box(context, child)
 
@@ -507,6 +708,80 @@ fn draw_text_input(
   )
 }
 
+fn draw_text_area(
+  context: Context,
+  model: TextAreaModel,
+  style: style.Style,
+  is_focused: Bool,
+  on_click: fn() -> msg,
+) -> DrawResponse(msg) {
+  let lines = string.split(model.text, "\n")
+
+  let #(lines, height) = case context.height {
+    BoundedHeight(height) -> #(lines |> list.take(height), height)
+    UnboundedHeight -> #(lines, list.length(lines))
+  }
+
+  DrawResponse(
+    list.flatten([
+      [
+        command.MoveTo(context.left, context.top),
+        command.SetStyle(style),
+        command.Print("┌"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("┐"),
+        command.MoveTo(context.left, context.top + height - 1),
+        command.Print("└"),
+        command.Print(string.repeat("─", context.width - 2)),
+        command.Print("┘"),
+      ],
+
+      int.range(context.top + height - 2, context.top, [], fn(accumulator, row) {
+        [
+          [
+            command.MoveTo(context.left, row),
+            command.Print("│"),
+            command.MoveTo(int.max(0, context.left + context.width - 1), row),
+            command.Print("│"),
+          ],
+          ..accumulator
+        ]
+      })
+        |> list.flatten,
+
+      list.index_map(lines, fn(line, index) {
+        [
+          command.MoveTo(context.left + 1, context.top + index + 1),
+          command.Print(line),
+        ]
+      })
+        |> list.flatten,
+
+      [command.ResetStyle],
+    ]),
+    [
+      MouseClickCallback(
+        context.left,
+        context.top,
+        context.width,
+        height,
+        on_click,
+      ),
+    ],
+    case is_focused {
+      True -> [
+        command.MoveTo(
+          context.left + model.column + 1,
+          context.top + model.row + 1,
+        ),
+        command.ShowCursor,
+      ]
+      False -> []
+    },
+    height,
+  )
+}
+
 fn draw_outlined_box(context: Context, child: Node(msg)) -> DrawResponse(msg) {
   let DrawResponse(child_commands, child_callbacks, child_after, child_height) =
     draw_in_context(
@@ -720,7 +995,11 @@ fn draw_tabs(
                   response_so_far.after_commands,
                   button_response.after_commands,
                 ]),
-                int.max(button_response.height + 1, response_so_far.height),
+                case context.height {
+                  BoundedHeight(height) -> height
+                  UnboundedHeight ->
+                    int.max(button_response.height + 1, response_so_far.height)
+                },
               ),
               width_used + 1 + name_length,
             )
