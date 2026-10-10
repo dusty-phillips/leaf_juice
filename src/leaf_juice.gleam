@@ -35,7 +35,7 @@ type AppState(model, msg) {
   )
 }
 
-type ActorMessage(msg) {
+pub type ActorMessage(msg) {
   Event(event.Event)
   AppMsg(msg)
   Shutdown
@@ -43,7 +43,7 @@ type ActorMessage(msg) {
 
 pub fn start(
   app: LeafJuice(model, msg),
-) -> Result(actor.Started(Nil), actor.StartError) {
+) -> Result(actor.Started(process.Subject(ActorMessage(msg))), actor.StartError) {
   actor.new_with_initialiser(1000, fn(actor_subject) {
     let #(model, effects) = app.init()
 
@@ -73,7 +73,7 @@ pub fn start(
 
     process.spawn(fn() { handle_input(actor_subject) })
 
-    Ok(actor.initialised(app_state))
+    Ok(actor.initialised(app_state) |> actor.returning(actor_subject))
   })
   |> actor.on_message(on_message)
   |> actor.start
