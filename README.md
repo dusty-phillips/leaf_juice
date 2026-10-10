@@ -25,7 +25,7 @@ Look at the example in dev/leaf_juice_example.gleam to see what works
 - [x] Basic outline box
 - [x] styling with Etch styles
 - [x] Tabbed Layout
-- [ ] Multi-line text input
+- [x] Multi-line text input
 - [ ] List
 
 ## Focus is NOT PLANNED

@@ -1,6 +1,6 @@
+import etch/erlang/tty
 import etch/event
 import etch/style
-import etch/terminal
 import gleam/erlang/process
 import gleam/int
 import leaf_juice
@@ -62,10 +62,11 @@ fn prev_focus(focus: Focus) -> Focus {
 
 fn confirm_focused(model: Model) -> #(Model, List(leaf_juice.Effect(Msg))) {
   case model.focused {
-    FocusNone | FocusInput | FocusScrollable | FocusScrollableText | FocusTabs -> #(
-      model,
-      [],
-    )
+    FocusNone
+    | FocusInput
+    | FocusScrollable
+    | FocusScrollableText
+    | FocusTabs -> #(model, [])
 
     FocusOne -> #(model, [leaf_juice.Effect(fn() { UserInvokedOne })])
   }
@@ -123,7 +124,7 @@ type Msg {
 }
 
 fn init() -> #(Model, List(leaf_juice.Effect(Msg))) {
-  let assert Ok(#(width, height)) = terminal.window_size()
+  let assert Ok(#(width, height)) = tty.window_size()
   #(
     Model(
       last_button: "None",

@@ -1,4 +1,6 @@
 import etch/command
+import etch/erlang/input
+import etch/erlang/tty
 import etch/event
 import etch/stdout
 import etch/terminal
@@ -45,7 +47,8 @@ pub fn start(
   actor.new_with_initialiser(1000, fn(actor_subject) {
     let #(model, effects) = app.init()
 
-    terminal.enter_raw()
+    // TODO: this let assert is a copout
+    let assert Ok(Nil) = tty.enter_raw()
 
     stdout.execute([
       command.EnterAlternateScreen,
@@ -61,8 +64,6 @@ pub fn start(
       ]),
       command.EnableMouseCapture,
     ])
-
-    event.init_event_server()
 
     let app_state = AppState(app, model, actor_subject, mouse_callbacks: [])
 
@@ -124,7 +125,7 @@ fn run_effects(
 }
 
 fn handle_input(actor_subject: process.Subject(ActorMessage(msg))) -> Nil {
-  case event.read() {
+  case input.read() {
     option.Some(Ok(event)) -> process.send(actor_subject, Event(event))
     option.Some(Error(_)) | option.None ->
       todo as "Not sure what can get us into this state so don't know how to handle it"
@@ -133,7 +134,10 @@ fn handle_input(actor_subject: process.Subject(ActorMessage(msg))) -> Nil {
   handle_input(actor_subject)
 }
 
-fn on_mouse_up(app_state: AppState(model, msg), event: event.MouseEvent) -> Nil {
+fn on_mouse_up(
+  app_state: AppState(model, msg),
+  event: event.MouseEvent,
+) -> Nil {
   let event.MouseEvent(row:, column:, ..) = event
 
   let match =
@@ -157,7 +161,10 @@ fn on_mouse_up(app_state: AppState(model, msg), event: event.MouseEvent) -> Nil 
   }
 }
 
-fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) {
+fn do_update(
+  app_state: AppState(model, msg),
+  msg: msg,
+) -> AppState(model, msg) {
   let #(next_model, next_effects) = app_state.app.update(app_state.model, msg)
 
   let next_state = AppState(..app_state, model: next_model, mouse_callbacks: [])
@@ -169,7 +176,7 @@ fn do_update(app_state: AppState(model, msg), msg: msg) -> AppState(model, msg) 
 }
 
 fn draw(app_state: AppState(model, msg)) -> AppState(model, msg) {
-  let assert Ok(window_size) = terminal.window_size()
+  let assert Ok(window_size) = tty.window_size()
   let #(commands, mouse_callbacks) =
     ui.draw(app_state.app.view(app_state.model), window_size)
 
