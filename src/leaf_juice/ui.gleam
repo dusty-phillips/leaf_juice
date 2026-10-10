@@ -96,6 +96,7 @@ pub fn update_text_input(
         }
 
         event.Backspace -> {
+          echo "backspace happened"
           let before = string.slice(model.text, 0, model.cursor_position - 1)
           let after =
             string.slice(

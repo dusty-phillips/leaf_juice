@@ -89,19 +89,19 @@ pub fn update_text_input_delete_test() {
 pub fn update_text_input_backspace_test() {
   assert ui.update_text_input(
       ui.TextInputModel("", 0),
-      make_key_event(event.Char("\u{007F}")),
+      make_key_event(event.Backspace),
     )
     == ui.TextInputModel("", 0)
 
   assert ui.update_text_input(
       ui.TextInputModel("abc", 3),
-      make_key_event(event.Char("\u{007F}")),
+      make_key_event(event.Backspace),
     )
     == ui.TextInputModel("ab", 2)
 
   assert ui.update_text_input(
       ui.TextInputModel("abc", 1),
-      make_key_event(event.Char("\u{007F}")),
+      make_key_event(event.Backspace),
     )
     == ui.TextInputModel("bc", 0)
 }
